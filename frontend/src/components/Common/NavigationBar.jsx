@@ -10,7 +10,7 @@ const NavigationBar = () => {
     };
 
     return (
-        <Navbar expand="lg" className="bg-body-tertiary">
+        <Navbar expand="lg" className="bg-body-tertiary shadow-sm">
             <Container>
                 <Navbar.Brand href="/" className="fw-bold">
                     Convo Book

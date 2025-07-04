@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Alert, Spinner, Button } from 'react-bootstrap';
 import { loadBookData, getPageData } from '../../utils/bookDataLoader';
-import { saveReadingProgress } from '../../utils/storageUtils';
+import { saveReadingProgress, clearReadingProgress } from '../../utils/storageUtils';
+import InteractivePanel from './InteractivePanel/InteractivePanel';
 import './BookReader.css';
 
 const BookReader = () => {
@@ -14,6 +15,11 @@ const BookReader = () => {
     const [currentPage, setCurrentPage] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Chat panel state
+    const [showChatPanel, setShowChatPanel] = useState(false);
+    const [currentQuestion, setCurrentQuestion] = useState(null);
+    const [chatMessages, setChatMessages] = useState([]);
 
     useEffect(() => {
         loadCurrentBook();
@@ -64,6 +70,9 @@ const BookReader = () => {
         if (page) {
             setCurrentPage(page);
             saveReadingProgress(bookId, pageNum);
+
+            // Close chat panel when manually navigating to page
+            setShowChatPanel(false);
         } else {
             setError(`Page ${pageNum} not found`);
         }
@@ -84,14 +93,40 @@ const BookReader = () => {
 
     const handleNextPage = () => {
         const currentPageNum = parseInt(pageNumber, 10);
+
+        // First check if we should show chat panel for current page
+        if (!showChatPanel && currentPage?.question) {
+            setCurrentQuestion(currentPage.question);
+            setShowChatPanel(true);
+            setChatMessages([]);
+            return;
+        }
+
+        // If chat panel is already shown or no question, navigate to next page or library
         if (currentPageNum < bookData.totalPages) {
             navigateToPage(currentPageNum + 1);
+        } else {
+            // Last page - clear reading progress and go back to library
+            clearReadingProgress(bookId);
+            navigate('/');
         }
     };
 
-    const canGoNext = () => {
-        const currentPageNum = parseInt(pageNumber, 10);
-        return currentPageNum < bookData.totalPages;
+    const canPerformAction = () => {
+        // Always allow action - button handles navigation or chat panel
+        return true;
+    };
+
+
+
+    const getButtonColorClass = () => {
+        if (showChatPanel) {
+            return ''; // Default blue for Next Page / Finish Book
+        } else if (currentPage?.question) {
+            return 'question-btn'; // Green for Discuss Page
+        } else {
+            return ''; // Default blue for Next Page
+        }
     };
 
     const canGoPrevious = () => {
@@ -141,51 +176,62 @@ const BookReader = () => {
     }
 
     return (
-        <div className="book-reader">
-            {/* Main Reading Area */}
-            <div className="reading-container">
-                <div className="page-wrapper">
-                    {/* Book Page Container with Navigation */}
-                    <div className="book-page-container">
-                        {/* Previous Page Button */}
-                        <Button
-                            variant="outline-secondary"
-                            className="page-nav-btn page-nav-prev"
-                            disabled={!canGoPrevious()}
-                            onClick={handlePreviousPage}
-                        >
-                            ←
-                        </Button>
+        <div className={`book-reader ${showChatPanel ? 'with-chat-panel' : ''}`}>
+            {/* Book Section */}
+            <div className={`reading-section ${showChatPanel ? 'with-chat' : ''}`}>
+                {/* Main Reading Area */}
+                <div className="reading-container">
+                    <div className="page-wrapper">
+                        {/* Book Page Container with Navigation */}
+                        <div className="book-page-container">
+                            {/* Previous Page Button */}
+                            <Button
+                                variant="outline-secondary"
+                                className="page-nav-btn page-nav-prev"
+                                disabled={!canGoPrevious()}
+                                onClick={handlePreviousPage}
+                            >
+                                ←
+                            </Button>
 
-                        {/* Book Page Image */}
-                        <img
-                            src={currentPage.imageUrl}
-                            alt={`Page ${currentPage.pageNumber}`}
-                            className="book-page-image"
-                        />
+                            {/* Book Page Image */}
+                            <img
+                                src={currentPage.imageUrl}
+                                alt={`Page ${currentPage.pageNumber}`}
+                                className="book-page-image"
+                            />
 
-                        {/* Next Page Button */}
-                        <Button
-                            variant="outline-secondary"
-                            className="page-nav-btn page-nav-next"
-                            disabled={!canGoNext()}
-                            onClick={handleNextPage}
-                        >
-                            →
-                        </Button>
+                            {/* Next Page Button */}
+                            <Button
+                                variant="outline-secondary"
+                                className={`page-nav-btn page-nav-next ${getButtonColorClass()}`}
+                                disabled={!canPerformAction()}
+                                onClick={handleNextPage}
+                            >
+                                →
+                            </Button>
+                        </div>
                     </div>
+                </div>
+
+                {/* Bottom Status Bar */}
+                <div className="bottom-status-bar">
+                    <Container>
+                        <div className="d-flex justify-content-between align-items-center">
+                            <h6 className="mb-0 small">{bookData.title}</h6>
+                            <span className="page-info small">Page {pageNumber} of {bookData.totalPages}</span>
+                        </div>
+                    </Container>
                 </div>
             </div>
 
-            {/* Bottom Status Bar */}
-            <div className="bottom-status-bar">
-                <Container>
-                    <div className="d-flex justify-content-between align-items-center">
-                        <h6 className="mb-0">{bookData.title}</h6>
-                        <span className="page-info">Page {pageNumber} of {bookData.totalPages}</span>
-                    </div>
-                </Container>
-            </div>
+            {/* Chat Panel */}
+            {showChatPanel && (
+                <InteractivePanel
+                    question={currentQuestion}
+                    messages={chatMessages}
+                />
+            )}
         </div>
     );
 };

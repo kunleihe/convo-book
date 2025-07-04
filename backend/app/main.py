@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.health_check import health_check_router
 from app.routes.realtime import realtime_router
+from app.routes.books import books_router
 from app.config import CORS_ORIGINS
 
 app = FastAPI(title="Convo Book API", description="Real-time communication hub")
@@ -19,6 +20,7 @@ app.add_middleware(
 # API routes
 app.include_router(health_check_router, prefix="/health")
 app.include_router(realtime_router)
+app.include_router(books_router, prefix="/api")
 
 # Root API endpoint
 @app.get("/")

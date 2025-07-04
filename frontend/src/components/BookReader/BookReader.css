@@ -8,6 +8,22 @@
     background-color: #ffffff;
 }
 
+/* Split-screen layout when chat panel is visible */
+.book-reader.with-chat-panel {
+    flex-direction: row;
+}
+
+.reading-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.reading-section.with-chat {
+    flex: 1;
+}
+
 
 
 /* Main Reading Container */
@@ -16,7 +32,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
+    padding: 1rem;
 }
 
 /* Page Wrapper */
@@ -30,8 +46,8 @@
 /* Book Page Container - this contains the image and navigation arrows */
 .book-page-container {
     position: relative;
-    max-width: 70%;
-    max-height: 70%;
+    max-width: 75%;
+    max-height: 80%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -47,22 +63,18 @@
     transition: transform 0.2s ease-in-out;
 }
 
-.book-page-image:hover {
-    transform: scale(1.02);
-}
-
 /* Navigation Arrows - positioned relative to book container */
 .page-nav-btn {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
-    width: 60px;
-    height: 60px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: bold;
     border: 2px solid #dee2e6;
     background-color: rgba(255, 255, 255, 0.95);
@@ -86,6 +98,14 @@
     transform: translateY(-50%) scale(1.1);
 }
 
+/* Question button has different hover color */
+.page-nav-btn.question-btn:hover:not(:disabled) {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+    transform: translateY(-50%) scale(1.1);
+}
+
 .page-nav-btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
@@ -93,7 +113,7 @@
 
 /* Bottom Status Bar */
 .bottom-status-bar {
-    height: 60px;
+    height: 40px;
     background-color: #f8f9fa;
     border-top: 1px solid #dee2e6;
     display: flex;
@@ -175,4 +195,35 @@
     display: flex;
     justify-content: center;
     align-items: center;
+}
+
+/* Responsive design for chat panel */
+@media (max-width: 1024px) {
+    .book-reader.with-chat-panel {
+        flex-direction: column;
+    }
+
+    .reading-section.with-chat {
+        height: 60vh;
+    }
+
+    .interactive-panel {
+        width: 100%;
+        height: 40vh;
+    }
+}
+
+@media (max-width: 768px) {
+    .book-reader.with-chat-panel {
+        position: relative;
+    }
+
+    .interactive-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1000;
+    }
 }
