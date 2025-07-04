@@ -1,0 +1,30 @@
+{
+    "id": "book1",
+    "title": "Speed Racer",
+    "coverImageUrl": "https://www.creatopy.com/blog/wp-content/uploads/2020/07/The-Good-Egg-Book-Cover.jpg",
+    "totalPages": 2,
+    "pages": [
+        {
+            "pageNumber": 1,
+            "storyText": "Once upon a time, in a magical forest filled with talking animals and sparkling streams, a young explorer named Sam discovered a mysterious glowing path that led deep into the woods.",
+            "imageUrl": "https://i.pinimg.com/originals/7d/e4/8d/7de48da6851b8f7b40b9a152c939ec2e.jpg",
+            "narrationAudioUrl": "https://example.com/books/book1/narration1.mp3",
+            "question": {
+                "text": "What do you think Sam is feeling as they see the glowing path for the first time?",
+                "audioUrl": "https://example.com/books/book1/question1.mp3"
+            },
+            "promptTemplate": "template1"
+        },
+        {
+            "pageNumber": 2,
+            "storyText": "As Sam followed the glowing path, they met a wise old owl perched on a crystal tree. The owl spoke in a gentle voice: 'Welcome, young traveler. The forest has been waiting for someone brave enough to help us solve an ancient mystery.'",
+            "imageUrl": "https://i.pinimg.com/originals/7d/e4/8d/7de48da6851b8f7b40b9a152c939ec2e.jpg",
+            "narrationAudioUrl": "https://example.com/books/book1/narration2.mp3",
+            "question": {
+                "text": "What kind of mystery do you think the owl wants Sam to help solve?",
+                "audioUrl": "https://example.com/books/book1/question2.mp3"
+            },
+            "promptTemplate": "template1"
+        }
+    ]
+}

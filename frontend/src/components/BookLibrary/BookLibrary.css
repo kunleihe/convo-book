@@ -1,0 +1,121 @@
+.book-library {
+    min-height: 100vh;
+    padding: 2rem 0;
+}
+
+/* Header Section */
+.library-header {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.library-header h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    color: #333333;
+    margin-bottom: 0;
+}
+
+/* Settings Section */
+.library-settings {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.library-settings .form-check {
+    display: inline-block;
+}
+
+.library-settings .form-check-label {
+    font-weight: 500;
+    color: #495057;
+}
+
+/* Error Container */
+.error-container {
+    max-width: 500px;
+    margin: 0 auto 2rem auto;
+}
+
+/* Books Container */
+.books-container {
+    margin-top: 2rem;
+}
+
+.empty-state {
+    text-align: center;
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+/* Books Grid */
+.books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 200px);
+    gap: 1.5rem;
+    justify-content: start;
+    margin-top: 2rem;
+}
+
+/* Book Card */
+.book-card {
+    width: 200px;
+    cursor: pointer;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.book-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Book Cover */
+.book-cover {
+    width: 200px;
+    height: 267px;
+    /* 3:4 aspect ratio */
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    margin-bottom: 0.75rem;
+}
+
+.book-cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: filter 0.2s ease-in-out;
+}
+
+
+/* Book Title */
+.book-title {
+    text-align: center;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #333333;
+    line-height: 1.2;
+    padding: 0 0.25rem;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .books-grid {
+        grid-template-columns: repeat(auto-fill, 150px);
+        gap: 1rem;
+        justify-content: center;
+    }
+
+    .book-card {
+        width: 150px;
+    }
+
+    .book-cover {
+        width: 150px;
+        height: 200px;
+    }
+
+    .book-title {
+        font-size: 0.8rem;
+    }
+}
