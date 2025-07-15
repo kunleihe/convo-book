@@ -246,6 +246,22 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
             console.log('ScriptProcessorNode disconnected');
         }
 
+        // Clean up audio stream immediately (don't wait for MediaRecorder.onstop)
+        if (audioStreamRef.current) {
+            audioStreamRef.current.getTracks().forEach(track => {
+                track.stop();
+                console.log('Audio track stopped:', track.kind);
+            });
+            audioStreamRef.current = null;
+        }
+
+        // Clean up AudioContext
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
+            console.log('AudioContext closed');
+        }
+
         setRecordingTime('00:00');
     }, []);
 

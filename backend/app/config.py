@@ -44,7 +44,7 @@ CORS_ORIGINS = get_cors_origins()
 # Session Configuration for OpenAI Realtime API
 SESSION_CONFIG = {
     "instructions": "You are a helpful voice assistant. Please respond with both text and audio. Always provide an audio response.",
-    "voice": "alloy",  # Options: alloy, echo, fable, onyx, nova, shimmer
+    "voice": "shimmer",  # Options: alloy, echo, fable, onyx, nova, shimmer
     "input_audio_format": "pcm16",
     "output_audio_format": "pcm16",
     "modalities": ["text", "audio"],

@@ -20,6 +20,7 @@ const BookReader = () => {
     const [showChatPanel, setShowChatPanel] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState(null);
     const [chatMessages, setChatMessages] = useState([]);
+    const [isQuestionAudioPlaying, setIsQuestionAudioPlaying] = useState(false);
 
     useEffect(() => {
         loadCurrentBook();
@@ -44,6 +45,24 @@ const BookReader = () => {
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
     }, [bookData, pageNumber]);
+
+    // Preload next page image when chat panel opens
+    useEffect(() => {
+        if (showChatPanel && bookData && currentPage) {
+            const currentPageNum = parseInt(pageNumber, 10);
+            const nextPageNum = currentPageNum + 1;
+
+            // Only preload if there's a next page
+            if (nextPageNum <= bookData.totalPages) {
+                const nextPage = getPageData(bookData, nextPageNum);
+                if (nextPage && nextPage.imageUrl) {
+                    const img = new Image();
+                    img.src = nextPage.imageUrl;
+                    console.log(`Preloading next page image: ${nextPage.imageUrl}`);
+                }
+            }
+        }
+    }, [showChatPanel, bookData, currentPage, pageNumber]);
 
     const loadCurrentBook = async () => {
         try {
@@ -113,6 +132,10 @@ const BookReader = () => {
     };
 
     const canPerformAction = () => {
+        // Disable action if question audio is playing
+        if (isQuestionAudioPlaying) {
+            return false;
+        }
         // Always allow action - button handles navigation or chat panel
         return true;
     };
@@ -230,6 +253,9 @@ const BookReader = () => {
                 <InteractivePanel
                     question={currentQuestion}
                     messages={chatMessages}
+                    onAudioPlayingChange={setIsQuestionAudioPlaying}
+                    bookId={bookId}
+                    pageNumber={parseInt(pageNumber, 10)}
                 />
             )}
         </div>

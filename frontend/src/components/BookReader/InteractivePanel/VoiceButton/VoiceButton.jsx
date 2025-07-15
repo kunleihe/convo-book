@@ -1,10 +1,65 @@
 import React from 'react';
+import { useAudioRecorder } from '../../../../hooks/useAudioRecorder';
 import './VoiceButton.css';
 
-const VoiceButton = () => {
+const VoiceButton = ({
+    disabled = false,
+    onAudioRecorded,
+    onAudioChunk,
+    onRecordingComplete
+}) => {
+    // Audio recording functionality
+    const {
+        isRecording,
+        startRecording,
+        stopRecording,
+    } = useAudioRecorder(
+        // onAudioRecorded callback - send to voice chat
+        (pcm16Data) => {
+            console.log('[VoiceButton] Audio recorded:', pcm16Data.length, 'samples');
+            if (onAudioRecorded) {
+                onAudioRecorded(pcm16Data);
+            }
+            if (onRecordingComplete) {
+                onRecordingComplete();
+            }
+        },
+        // onAudioChunk callback - send to transcription
+        (pcm16Data) => {
+            if (onAudioChunk) {
+                onAudioChunk(pcm16Data);
+            }
+        }
+    );
+
+    const handleRecordStart = async () => {
+        if (!isRecording && !disabled) {
+            console.log('[VoiceButton] Starting recording...');
+            const success = await startRecording();
+            if (!success) {
+                console.error('[VoiceButton] Failed to start recording');
+            }
+        }
+    };
+
+    const handleRecordStop = () => {
+        if (isRecording) {
+            console.log('[VoiceButton] Stopping recording...');
+            stopRecording();
+        }
+    };
+
     return (
-        <button className="voice-button btn btn-primary">
-            Hold to Talk
+        <button
+            className={`voice-button btn btn-primary ${isRecording ? 'recording' : ''}`}
+            disabled={disabled}
+            onMouseDown={handleRecordStart}
+            onMouseUp={handleRecordStop}
+            onMouseLeave={handleRecordStop} // Stop recording if mouse leaves button
+            onTouchStart={handleRecordStart}
+            onTouchEnd={handleRecordStop}
+        >
+            {isRecording ? 'Recording...' : 'Hold to Talk'}
         </button>
     );
 };

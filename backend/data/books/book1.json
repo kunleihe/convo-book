@@ -1,44 +1,85 @@
 {
     "id": "book1",
     "title": "Speed Racer",
-    "coverImageUrl": "https://www.creatopy.com/blog/wp-content/uploads/2020/07/The-Good-Egg-Book-Cover.jpg",
-    "totalPages": 4,
+    "coverImageUrl": "/sample_book/images/cover.png",
+    "totalPages": 9,
     "pages": [
         {
             "pageNumber": 1,
-            "storyText": "Once upon a time, in a magical forest filled with talking animals and sparkling streams, a young explorer named Sam discovered a mysterious glowing path that led deep into the woods.",
-            "imageUrl": "https://slidemodel.com/wp-content/uploads/61006-01-creative-lessons-learned-slide-template-16x9-1.jpg",
-            "narrationAudioUrl": "https://example.com/books/book1/narration1.mp3",
-            "promptTemplate": "template1"
+            "storyText": "It was a bright and sunny day when Elinor and her friends, Ari and Olive, built a brand-new car. They used cardboard boxes, colorful crayons, and lots of tape.\n\"Wow! Our car looks amazing!\" said Ari the bat, full of excitement.\n\"It sure does, Ari! And those are some super cool decorations, Olive,\" said Elinor the bunny, admiring their creation.\n\"Thanks!\" replied Olive the elephant with a proud smile.",
+            "imageUrl": "/sample_book/images/page1.png",
+            "narrationAudioUrl": "https://example.com/books/book1/narration1.mp3"
         },
         {
             "pageNumber": 2,
-            "storyText": "As Sam followed the glowing path, they met a wise old owl perched on a crystal tree. The owl spoke in a gentle voice: 'Welcome, young traveler. The forest has been waiting for someone brave enough to help us solve an ancient mystery.'",
-            "imageUrl": "https://slidechef.net/wp-content/uploads/2021/10/Free-Google-Slides-Interactive-Education-Template.jpg",
+            "storyText": "Just then, Mr. Rabbit walked over to see the car.\n\"Do you think it’ll go fast, Mr. Rabbit?\" asked Olive curiously.\n\"I want to feel the wind in my ears!\" added Elinor.\n\"Well, there’s only one way to find out,\" said Mr. Rabbit. \"Are you going to take it for a ride?\"",
+            "imageUrl": "/sample_book/images/page2.png",
             "narrationAudioUrl": "https://example.com/books/book1/narration2.mp3",
             "question": {
-                "text": "Camila’s car is faster. Let's look closely at Elinor’s car and Camilla’s car to see if we can figure out why Camilla’s is faster. How is Camilla's car different from Elinor’s car? ",
-                "audioUrl": "https://example.com/books/book1/question2.mp3"
+                "questionText": "Did you ever ride in a car going really fast? How did it feel?",
+                "follow-up": [
+                    "Imagine you’re in a fast car. Will it make you feel excited or a little scared?" 
+                ],
+                "audioUrl": "/sample_book/audios/questions/page1_question.wav"
             },
             "promptTemplate": "template1"
         },
         {
             "pageNumber": 3,
-            "storyText": "Once upon a time, in a magical forest filled with talking animals and sparkling streams, a young explorer named Sam discovered a mysterious glowing path that led deep into the woods.",
-            "imageUrl": "https://i.pinimg.com/originals/7d/e4/8d/7de48da6851b8f7b40b9a152c939ec2e.jpg",
-            "narrationAudioUrl": "https://example.com/books/book1/narration1.mp3",
-            "promptTemplate": "template1"
+            "storyText": "Elinor, Ari, and Olive pushed their car to the top of a small hill. Elinor climbed in and put on her helmet. She gave a big, brave nod—she was ready! Ari and Olive stood behind the car, their hands ready to push.\n\n\"Three… two… one… GO!\" they shouted.\nWith a big shove, the car zoomed forward!",
+            "imageUrl": "/sample_book/images/page3.png",
+            "narrationAudioUrl": "https://example.com/books/book1/narration1.mp3"
         },
         {
             "pageNumber": 4,
-            "storyText": "As Sam followed the glowing path, they met a wise old owl perched on a crystal tree. The owl spoke in a gentle voice: 'Welcome, young traveler. The forest has been waiting for someone brave enough to help us solve an ancient mystery.'",
-            "imageUrl": "https://www.blurb.com/blog/wp-content/uploads/2023/09/Childrens-book_6-1024x600.jpg",
-            "narrationAudioUrl": "https://example.com/books/book1/narration2.mp3",
+            "storyText": "WHEE! Elinor zoomed down the hill in her cardboard car.\nVROOOM! Suddenly, Camilla zipped by in a shiny yellow car.\n\n\"Coming through!\" she called out cheerfully.",
+            "imageUrl": "/sample_book/images/page4.png",
+            "narrationAudioUrl": "https://example.com/books/book1/narration2.mp3"
+        },
+        {
+            "pageNumber": 5,
+            "storyText": "\"Hi, Camilla! Your car is amazing!\" said Elinor with a grin.\n\"Thanks, Elinor! It’s brand new. I got it for my birthday. I call it The Camilla Convertible!\" said Camilla proudly.",
+            "imageUrl": "/sample_book/images/page5.png",
+            "narrationAudioUrl": "https://example.com/books/book1/narration5.mp3"
+        },
+        {
+            "pageNumber": 6,
+            "storyText": "The three friends looked at Camilla’s car. Camilla’s car was so cool—and really fast. It was bright yellow, with a racing stripe. It even had a nice cup holder inside!",
+            "imageUrl": "/sample_book/images/page6.png",
+            "narrationAudioUrl": "https://example.com/books/book1/narration6.mp3",
             "question": {
-                "text": "Camila’s car is faster. Let's look closely at Elinor’s car and Camilla’s car to see if we can figure out why Camilla’s is faster. How is Camilla's car different from Elinor’s car? ",
-                "audioUrl": "https://example.com/books/book1/question2.mp3"
+                "questionText": "Camila’s car is faster. Let's look closely at Elinor’s car and Camilla’s car to see if we can figure out why Camilla’s is faster. How is Camilla's car different from Elinor’s car?",
+                "audioUrl": "/sample_book/audios/questions/page6_question.wav"
             },
             "promptTemplate": "template1"
+        },
+        {
+            "pageNumber": 7,
+            "storyText": "\"Your car is nice, too!\" said Camilla kindly.\n\"Thanks, Camilla! We made it ourselves. But it’s not going as fast as yours,\" said Elinor, scratching her chin. \"I wonder how we can make our car go faster.\"",
+            "imageUrl": "/sample_book/images/page7.png",
+            "narrationAudioUrl": "https://example.com/books/book1/narration5.mp3"
+        },
+        {
+            "pageNumber": 8,
+            "storyText": "\"Your car is nice, too!\" said Camilla kindly.\n\"Thanks, Camilla! We made it ourselves. But it’s not going as fast as yours,\" said Elinor, scratching her chin. \"I wonder how we can make our car go faster.\"",
+            "imageUrl": "/sample_book/images/page8.png",
+            "narrationAudioUrl": "https://example.com/books/book1/narration5.mp3"
+        },
+        {
+            "pageNumber": 9,
+            "storyText": "I know! Maybe it’s the color!\" Ari suggested. \"If we paint our car yellow and add stripes like Camilla’s, it might go faster!\" \"That’s a great idea!\" agreed Elinor. \"Let’s take it back to your house and make some changes,\" said Olive.",
+            "imageUrl": "/sample_book/images/page9.png",
+            "narrationAudioUrl": "https://example.com/books/book1/narration5.mp3",
+            "question": {
+                "questionText": "Ari thinks that changing the color of their car will make it as fast as Camila’s car. What can Elinor and her friends do to test if changing the color can make their car go faster?",
+                "answerText": "They can change the color of their car to yellow and have a race with Camilla to see if their car goes as fast as Camila’s car.",
+                "follow-up": [
+                    "Ari thinks that changing the color of their car will make it go faster. Do you think they should change the color of their car to yellow to test it out?",
+                    "What should they do to test it is as fast as Camila’s car after they painted their car yellow?"
+                ],
+                "audioUrl": "/sample_book/audios/questions/page9_question.wav"
+            },
+            "promptTemplate": "template2"
         }
     ]
 }

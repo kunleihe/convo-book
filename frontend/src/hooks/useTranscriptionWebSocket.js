@@ -113,6 +113,12 @@ export const useTranscriptionWebSocket = () => {
     // Connect to transcription WebSocket via backend proxy
     const connect = useCallback(async () => {
         try {
+            // Connection guard - prevent duplicate connections
+            if (isConnected || connectionStatus === 'connecting') {
+                addDebugMessage('Already connected or connecting to transcription');
+                return;
+            }
+
             if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
                 addDebugMessage('Already connected to transcription');
                 return;
@@ -172,7 +178,7 @@ export const useTranscriptionWebSocket = () => {
             console.error('[Transcription] Connection error:', error);
             setConnectionStatus('error');
         }
-    }, [addDebugMessage, handleTranscriptionMessage, configureTranscriptionSession]);
+    }, [isConnected, connectionStatus, addDebugMessage, handleTranscriptionMessage, configureTranscriptionSession]);
 
     // Send audio data for transcription
     const sendAudioData = useCallback((audioData) => {
@@ -229,6 +235,12 @@ export const useTranscriptionWebSocket = () => {
 
     // Disconnect from transcription WebSocket
     const disconnect = useCallback(() => {
+        // Disconnect guard - only disconnect if actually connected
+        if (!isConnected && connectionStatus === 'disconnected') {
+            addDebugMessage('Already disconnected from transcription');
+            return;
+        }
+
         if (websocketRef.current) {
             websocketRef.current.close();
             websocketRef.current = null;
@@ -236,7 +248,7 @@ export const useTranscriptionWebSocket = () => {
         setIsConnected(false);
         setConnectionStatus('disconnected');
         addDebugMessage('Disconnected from transcription');
-    }, [addDebugMessage]);
+    }, [isConnected, connectionStatus, addDebugMessage]);
 
     // Clear transcriptions
     const clearTranscriptions = useCallback(() => {
