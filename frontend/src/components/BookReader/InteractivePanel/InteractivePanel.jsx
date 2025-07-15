@@ -130,6 +130,17 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
             }
         });
 
+        // Add streaming AI response if currently speaking
+        if (pageVoiceChat.isAiSpeaking && pageVoiceChat.currentStreamingTranscript) {
+            combinedMessages.push({
+                id: `streaming-${pageVoiceChat.streamingResponseId}`,
+                content: pageVoiceChat.currentStreamingTranscript,
+                isUser: false,
+                timestamp: new Date(),
+                type: 'ai-streaming'
+            });
+        }
+
         // Add user transcription messages with proper timestamps
         transcriptionWS.transcriptions.forEach((transcription, index) => {
             // Only add if it's a transcription result (not debug message)

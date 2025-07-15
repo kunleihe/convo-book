@@ -7,6 +7,11 @@ export const usePageVoiceChat = () => {
     const [conversationMessages, setConversationMessages] = useState([]);
     const [currentPrompt, setCurrentPrompt] = useState(null);
 
+    // Streaming transcript states
+    const [currentStreamingTranscript, setCurrentStreamingTranscript] = useState('');
+    const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+    const [streamingResponseId, setStreamingResponseId] = useState(null);
+
     const websocketRef = useRef(null);
     const responseAudioBufferRef = useRef([]);
     const isPlayingResponseRef = useRef(false);
@@ -194,6 +199,11 @@ export const usePageVoiceChat = () => {
                     isStreamingAudioRef.current = true;
                     currentTranscriptRef.current = '';
                     firstAudioChunkRef.current = false;
+
+                    // Set streaming transcript state
+                    setIsAiSpeaking(true);
+                    setCurrentStreamingTranscript('');
+                    setStreamingResponseId(Date.now().toString());
                     break;
 
                 case 'response.audio.delta':
@@ -216,6 +226,8 @@ export const usePageVoiceChat = () => {
                 case 'response.audio_transcript.delta':
                     if (data.delta) {
                         currentTranscriptRef.current += data.delta;
+                        // Update streaming transcript state for real-time display
+                        setCurrentStreamingTranscript(currentTranscriptRef.current);
                     }
                     break;
 
@@ -224,6 +236,11 @@ export const usePageVoiceChat = () => {
                         addConversationMessage(currentTranscriptRef.current, false);
                         currentTranscriptRef.current = '';
                     }
+
+                    // Clear streaming state
+                    setIsAiSpeaking(false);
+                    setCurrentStreamingTranscript('');
+                    setStreamingResponseId(null);
                     break;
 
                 case 'error':
@@ -344,6 +361,11 @@ export const usePageVoiceChat = () => {
         isPlayingResponseRef.current = false;
         currentTranscriptRef.current = '';
 
+        // Clear streaming transcript state
+        setIsAiSpeaking(false);
+        setCurrentStreamingTranscript('');
+        setStreamingResponseId(null);
+
         console.log('[PageVoiceChat] Disconnected and cleaned up');
     }, [isConnected, isLoading, resetStreamingState]);
 
@@ -408,6 +430,11 @@ export const usePageVoiceChat = () => {
     const clearConversation = useCallback(() => {
         setConversationMessages([]);
         setError(null);
+
+        // Clear streaming state
+        setIsAiSpeaking(false);
+        setCurrentStreamingTranscript('');
+        setStreamingResponseId(null);
     }, []);
 
     return {
@@ -420,5 +447,9 @@ export const usePageVoiceChat = () => {
         disconnect,
         sendAudioData,
         clearConversation,
+        // Streaming transcript states
+        currentStreamingTranscript,
+        isAiSpeaking,
+        streamingResponseId,
     };
 }; 
