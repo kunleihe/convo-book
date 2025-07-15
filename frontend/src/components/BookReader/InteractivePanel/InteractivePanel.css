@@ -19,10 +19,6 @@
     padding: 1rem;
 }
 
-.question-section {
-    margin-bottom: 1rem;
-}
-
 .chat-message {
     display: flex;
     align-items: flex-start;

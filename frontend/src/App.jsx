@@ -4,7 +4,6 @@ import NavigationBar from './components/Common/NavigationBar';
 import BookLibrary from './components/BookLibrary/BookLibrary';
 import BookReader from './components/BookReader/BookReader';
 import VoiceClient from './components/VoiceClient/VoiceClient';
-import TestPageVoiceChat from './components/TestPageVoiceChat';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
 
@@ -18,7 +17,6 @@ function App() {
             <Route path="/" element={<BookLibrary />} />
             <Route path="/book/:bookId/page/:pageNumber" element={<BookReader />} />
             <Route path="/voice" element={<VoiceClient />} />
-            <Route path="/test-page-voice" element={<TestPageVoiceChat />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
