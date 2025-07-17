@@ -22,6 +22,10 @@ const BookReader = () => {
     const [chatMessages, setChatMessages] = useState([]);
     const [isQuestionAudioPlaying, setIsQuestionAudioPlaying] = useState(false);
 
+    // Panel mode state
+    const [panelMode, setPanelMode] = useState('chat'); // 'chat' or 'discussion'
+    const [currentDiscussion, setCurrentDiscussion] = useState(null);
+
     useEffect(() => {
         loadCurrentBook();
     }, [bookId]);
@@ -113,19 +117,39 @@ const BookReader = () => {
     const handleNextPage = () => {
         const currentPageNum = parseInt(pageNumber, 10);
 
-        // First check if we should show chat panel for current page
+        // Case 1: No panels open, page has question → open chat panel
         if (!showChatPanel && currentPage?.question) {
             setCurrentQuestion(currentPage.question);
             setShowChatPanel(true);
+            setPanelMode('chat');
             setChatMessages([]);
             return;
         }
 
-        // If chat panel is already shown or no question, navigate to next page or library
+        // Case 2: Chat panel open in chat mode, page has discussion → switch to discussion mode
+        if (showChatPanel && panelMode === 'chat' && currentPage?.discussion) {
+            setCurrentDiscussion(currentPage.discussion);
+            setPanelMode('discussion');
+            return;
+        }
+
+        // Case 3: Chat panel open in discussion mode → go to next page
+        if (showChatPanel && panelMode === 'discussion') {
+            setShowChatPanel(false);
+            setPanelMode('chat'); // reset for next page
+            if (currentPageNum < bookData.totalPages) {
+                navigateToPage(currentPageNum + 1);
+            } else {
+                clearReadingProgress(bookId);
+                navigate('/');
+            }
+            return;
+        }
+
+        // Case 4: Default → go to next page
         if (currentPageNum < bookData.totalPages) {
             navigateToPage(currentPageNum + 1);
         } else {
-            // Last page - clear reading progress and go back to library
             clearReadingProgress(bookId);
             navigate('/');
         }
@@ -144,7 +168,7 @@ const BookReader = () => {
 
     const getButtonColorClass = () => {
         if (showChatPanel) {
-            return ''; // Default blue for Next Page / Finish Book
+            return ''; // Blue for Next Page / Finish Book
         } else if (currentPage?.question) {
             return 'question-btn'; // Green for Discuss Page
         } else {
@@ -251,7 +275,9 @@ const BookReader = () => {
             {/* Chat Panel */}
             {showChatPanel && (
                 <InteractivePanel
+                    mode={panelMode}
                     question={currentQuestion}
+                    discussion={currentDiscussion}
                     messages={chatMessages}
                     onAudioPlayingChange={setIsQuestionAudioPlaying}
                     bookId={bookId}
