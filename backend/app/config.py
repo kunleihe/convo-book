@@ -23,8 +23,7 @@ def get_cors_origins():
     if ENVIRONMENT == "production":
         # Production origins - replace with your actual domain
         return [
-            "https://yourdomain.com",
-            "https://www.yourdomain.com",
+            "https://cs6460.d2j24wh52qkpf2.amplifyapp.com"
         ]
     elif ENVIRONMENT == "staging":
         # Staging origins
