@@ -127,8 +127,10 @@ export const useTranscriptionWebSocket = () => {
             setConnectionStatus('connecting');
             console.log('[Transcription] Connecting via backend proxy...');
 
-            // Connect to our backend transcription proxy
-            const wsUrl = `ws://localhost:8000/transcription`;
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+            const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+            const wsBase = API_BASE_URL.replace(/^http/, wsProtocol);
+            const wsUrl = `${wsBase}/transcription`;
             addDebugMessage(`Connecting to: ${wsUrl}`);
 
             const ws = new WebSocket(wsUrl);

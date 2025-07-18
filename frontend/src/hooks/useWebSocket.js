@@ -321,13 +321,15 @@ export const useWebSocket = () => {
 
         try {
             // Fetch session configuration from backend
-            const response = await fetch('http://localhost:8000/session/config');
+            const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/session/config`);
             if (!response.ok) {
                 throw new Error(`Failed to fetch session config: ${response.status}`);
             }
             const sessionConfig = await response.json();
 
-            websocketRef.current = new WebSocket('ws://localhost:8000/realtime');
+            const wsProtocol = import.meta.env.VITE_API_URL?.startsWith('https') ? 'wss' : 'ws';
+            const wsBase = import.meta.env.VITE_API_URL?.replace(/^http/, wsProtocol);
+            websocketRef.current = new WebSocket(`${wsBase}/realtime`);
 
             websocketRef.current.onopen = () => {
                 setIsConnected(true);
