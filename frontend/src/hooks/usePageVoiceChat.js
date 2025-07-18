@@ -298,7 +298,7 @@ export const usePageVoiceChat = () => {
                             session: {
                                 modalities: ["text", "audio"],
                                 instructions: promptData.prompt,
-                                voice: "alloy",
+                                voice: "shimmer",
                                 input_audio_format: "pcm16",
                                 output_audio_format: "pcm16",
                                 input_audio_transcription: {

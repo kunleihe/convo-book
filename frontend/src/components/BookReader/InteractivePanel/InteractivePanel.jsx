@@ -190,18 +190,15 @@ const InteractivePanel = ({ mode, question, discussion, messages, onAudioPlaying
         }
 
         // Add user transcription messages with proper timestamps
-        transcriptionWS.transcriptions.forEach((transcription, index) => {
-            // Only add if it's a transcription result (not debug message)
-            if (transcription.includes('[TRANSCRIPTION]')) {
-                const cleanText = transcription.replace('[TRANSCRIPTION]', '').trim();
+        transcriptionWS.transcriptions.forEach((transcriptionObj, index) => {
+            if (transcriptionObj.text && transcriptionObj.text.includes('[TRANSCRIPTION]')) {
+                const cleanText = transcriptionObj.text.replace('[TRANSCRIPTION]', '').trim();
                 if (cleanText) {
-                    // Use the timestamp from when audio was recorded, or current time if not available
-                    const userTimestamp = lastAudioTimestamp || new Date();
                     combinedMessages.push({
                         id: `transcription-${index}`,
                         content: cleanText,
                         isUser: true,
-                        timestamp: userTimestamp,
+                        timestamp: transcriptionObj.timestamp,
                         type: 'user-transcription'
                     });
                 }
