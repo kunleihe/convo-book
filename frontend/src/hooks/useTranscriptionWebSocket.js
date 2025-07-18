@@ -129,7 +129,7 @@ export const useTranscriptionWebSocket = () => {
 
             const API_BASE_URL = import.meta.env.VITE_API_URL || '';
             const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
-            const wsBase = API_BASE_URL.replace(/^http/, wsProtocol);
+            const wsBase = API_BASE_URL.replace(/^https?:/, wsProtocol + ':');
             const wsUrl = `${wsBase}/transcription`;
             addDebugMessage(`Connecting to: ${wsUrl}`);
 
