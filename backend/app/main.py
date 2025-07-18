@@ -37,9 +37,3 @@ frontend_build_path = os.path.join(project_root, "frontend", "build")
 # Only mount static files if build directory exists (production mode)
 if os.path.exists(frontend_build_path):
     app.mount("/app", StaticFiles(directory=frontend_build_path, html=True), name="react-app")
-
-# Mount sample_book static files for images and audio
-import os
-sample_book_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "sample_book")
-if os.path.exists(sample_book_path):
-    app.mount("/sample_book", StaticFiles(directory=sample_book_path), name="sample_book")
