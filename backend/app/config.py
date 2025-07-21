@@ -36,6 +36,7 @@ def get_cors_origins():
         return [
             "http://localhost:5173",
             "http://localhost:8000",
+            "https://dev.d2j24wh52qkpf2.amplifyapp.com",  # Development frontend
         ]
 
 CORS_ORIGINS = get_cors_origins()
@@ -70,7 +71,18 @@ TRANSCRIPTION_CONFIG = {
     ]
 }
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
+# Database Configuration - Environment Aware
+def get_database_url():
+    """Get database URL based on environment"""
+    if ENVIRONMENT == "production":
+        return "sqlite:///./app_prod.db"
+    elif ENVIRONMENT == "development":
+        return "sqlite:///./app_dev.db"
+    else:
+        # Default/local development
+        return "sqlite:///./app.db"
+
+SQLALCHEMY_DATABASE_URL = get_database_url()
 
 # JWT Configuration
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
