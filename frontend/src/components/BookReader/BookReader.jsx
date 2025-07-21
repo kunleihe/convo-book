@@ -22,10 +22,6 @@ const BookReader = () => {
     const [chatMessages, setChatMessages] = useState([]);
     const [isQuestionAudioPlaying, setIsQuestionAudioPlaying] = useState(false);
 
-    // Panel mode state
-    const [panelMode, setPanelMode] = useState('chat'); // 'chat' or 'discussion'
-    const [currentDiscussion, setCurrentDiscussion] = useState(null);
-
     useEffect(() => {
         loadCurrentBook();
     }, [bookId]);
@@ -121,22 +117,13 @@ const BookReader = () => {
         if (!showChatPanel && currentPage?.question) {
             setCurrentQuestion(currentPage.question);
             setShowChatPanel(true);
-            setPanelMode('chat');
             setChatMessages([]);
             return;
         }
 
-        // Case 2: Chat panel open in chat mode, page has discussion → switch to discussion mode
-        if (showChatPanel && panelMode === 'chat' && currentPage?.discussion) {
-            setCurrentDiscussion(currentPage.discussion);
-            setPanelMode('discussion');
-            return;
-        }
-
-        // Case 3: Chat panel open in discussion mode → go to next page
-        if (showChatPanel && panelMode === 'discussion') {
+        // Case 2: Chat panel open → go to next page
+        if (showChatPanel) {
             setShowChatPanel(false);
-            setPanelMode('chat'); // reset for next page
             if (currentPageNum < bookData.totalPages) {
                 navigateToPage(currentPageNum + 1);
             } else {
@@ -146,7 +133,7 @@ const BookReader = () => {
             return;
         }
 
-        // Case 4: Default → go to next page
+        // Case 3: Default → go to next page
         if (currentPageNum < bookData.totalPages) {
             navigateToPage(currentPageNum + 1);
         } else {
@@ -275,9 +262,8 @@ const BookReader = () => {
             {/* Chat Panel */}
             {showChatPanel && (
                 <InteractivePanel
-                    mode={panelMode}
+                    mode={'chat'}
                     question={currentQuestion}
-                    discussion={currentDiscussion}
                     messages={chatMessages}
                     onAudioPlayingChange={setIsQuestionAudioPlaying}
                     bookId={bookId}

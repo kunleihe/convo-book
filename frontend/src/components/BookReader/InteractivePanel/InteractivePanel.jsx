@@ -7,9 +7,8 @@ import userAvatarImage from '../../../assets/user-avatar.png';
 import { fetchAudioWithRetry, getCachedAudio, cacheAudio } from '../../../utils/audioCache';
 import './InteractivePanel.css';
 
-const InteractivePanel = ({ mode, question, discussion, messages, onAudioPlayingChange, bookId, pageNumber }) => {
+const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pageNumber }) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-    const [isDiscussionAudioPlaying, setIsDiscussionAudioPlaying] = useState(false);
     const [lastAudioTimestamp, setLastAudioTimestamp] = useState(null);
 
     // Voice chat hooks
@@ -45,21 +44,18 @@ const InteractivePanel = ({ mode, question, discussion, messages, onAudioPlaying
     }, [question?.questionText, bookId, pageNumber]); // More specific dependency
 
     useEffect(() => {
-        if (mode === 'chat' && question && question.audioUrl) {
+        if (question && question.audioUrl) {
             playQuestionAudioAsync(question.audioUrl);
-        } else if (mode === 'discussion' && discussion && discussion.audioUrl) {
-            playDiscussionAudioAsync(discussion.audioUrl);
         }
 
-        // Cleanup: reset audio state when mode or content changes
+        // Cleanup: reset audio state when content changes
         return () => {
             if (onAudioPlayingChange) {
                 onAudioPlayingChange(false);
             }
             setIsAudioPlaying(false);
-            setIsDiscussionAudioPlaying(false);
         };
-    }, [mode, question, discussion]);
+    }, [question]);
 
     const updateAudioState = (playing) => {
         setIsAudioPlaying(playing);
@@ -70,7 +66,7 @@ const InteractivePanel = ({ mode, question, discussion, messages, onAudioPlaying
 
     const canUseVoiceButton = () => {
         // Disable voice button if audio is playing, not connected, or not in chat mode
-        return !isAudioPlaying && pageVoiceChat.isConnected && mode === 'chat';
+        return !isAudioPlaying && pageVoiceChat.isConnected && pageVoiceChat.isChatMode;
     };
 
     const playQuestionAudioAsync = async (audioUrl) => {
@@ -113,50 +109,6 @@ const InteractivePanel = ({ mode, question, discussion, messages, onAudioPlaying
             console.error('Failed to play question audio:', error);
             // Notify parent and update local state that audio has ended (due to error)
             updateAudioState(false);
-            // Silently fail - don't break the UI
-        }
-    };
-
-    const playDiscussionAudioAsync = async (audioUrl) => {
-        try {
-            // Check cache first
-            let audioBlob = await getCachedAudio(audioUrl);
-
-            if (!audioBlob) {
-                // Fetch from local/cloud
-                audioBlob = await fetchAudioWithRetry(audioUrl);
-                // Cache for future use
-                await cacheAudio(audioUrl, audioBlob);
-            }
-
-            // Add 0.5 second delay before playing
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Update state that audio is starting
-            setIsDiscussionAudioPlaying(true);
-
-            // Play audio
-            const audioObjectUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioObjectUrl);
-
-            audio.onended = () => {
-                URL.revokeObjectURL(audioObjectUrl);
-                // Update state that audio has ended
-                setIsDiscussionAudioPlaying(false);
-            };
-            audio.onerror = () => {
-                URL.revokeObjectURL(audioObjectUrl);
-                console.error('Audio playback failed');
-                // Update state that audio has ended (due to error)
-                setIsDiscussionAudioPlaying(false);
-            };
-
-            await audio.play();
-
-        } catch (error) {
-            console.error('Failed to play discussion audio:', error);
-            // Update state that audio has ended (due to error)
-            setIsDiscussionAudioPlaying(false);
             // Silently fail - don't break the UI
         }
     };
@@ -234,13 +186,13 @@ const InteractivePanel = ({ mode, question, discussion, messages, onAudioPlaying
     return (
         <div className="interactive-panel">
             <div className="panel-header">
-                <h5 className="mb-0">{mode === 'discussion' ? 'Discussion' : 'Chat'}</h5>
-                {mode === 'chat' && pageVoiceChat.isLoading && <small className="text-muted">Connecting...</small>}
-                {mode === 'chat' && pageVoiceChat.error && <small className="text-danger">Error: {pageVoiceChat.error}</small>}
+                <h5 className="mb-0">Chat</h5>
+                {pageVoiceChat.isLoading && <small className="text-muted">Connecting...</small>}
+                {pageVoiceChat.error && <small className="text-danger">Error: {pageVoiceChat.error}</small>}
             </div>
 
             <div className="panel-content">
-                {mode === 'chat' && question && (
+                {question && (
                     <div className="question-section">
                         <div className="chat-message ai-message">
                             <div className="avatar-container">
@@ -257,54 +209,31 @@ const InteractivePanel = ({ mode, question, discussion, messages, onAudioPlaying
                     </div>
                 )}
 
-                {mode === 'discussion' && discussion && (
-                    <div className="discussion-section">
-                        <div className="chat-message ai-message">
-                            <div className="avatar-container">
-                                <img
-                                    src={avatarImage}
-                                    alt="AI Avatar"
-                                    className="avatar-image"
-                                />
-                            </div>
-                            <div className="message-text ai-text">
-                                {discussion.discussionText}
-                            </div>
-                        </div>
-                    </div>
-                )}
+                <div className="chat-messages">
+                    {getCombinedMessages().map(renderMessage)}
+                </div>
 
-                {mode === 'chat' && (
-                    <>
-                        <div className="chat-messages">
-                            {getCombinedMessages().map(renderMessage)}
-                        </div>
-
-                        <div className="voice-controls">
-                            <VoiceButton
-                                disabled={!canUseVoiceButton()}
-                                onAudioRecorded={(pcm16Data) => {
-                                    // Store timestamp when audio is recorded
-                                    setLastAudioTimestamp(new Date());
-                                    pageVoiceChat.sendAudioData(pcm16Data);
-                                }}
-                                onAudioChunk={(pcm16Data) => {
-                                    if (transcriptionWS.isConnected) {
-                                        transcriptionWS.sendAudioData(pcm16Data);
-                                    }
-                                }}
-                                onRecordingComplete={() => {
-                                    // Commit transcription buffer after recording
-                                    if (transcriptionWS.isConnected) {
-                                        setTimeout(() => {
-                                            transcriptionWS.commitAudioBuffer();
-                                        }, 100);
-                                    }
-                                }}
-                            />
-                        </div>
-                    </>
-                )}
+                <div className="voice-controls">
+                    <VoiceButton
+                        disabled={!canUseVoiceButton()}
+                        onAudioRecorded={(pcm16Data) => {
+                            setLastAudioTimestamp(new Date());
+                            pageVoiceChat.sendAudioData(pcm16Data);
+                        }}
+                        onAudioChunk={(pcm16Data) => {
+                            if (transcriptionWS.isConnected) {
+                                transcriptionWS.sendAudioData(pcm16Data);
+                            }
+                        }}
+                        onRecordingComplete={() => {
+                            if (transcriptionWS.isConnected) {
+                                setTimeout(() => {
+                                    transcriptionWS.commitAudioBuffer();
+                                }, 100);
+                            }
+                        }}
+                    />
+                </div>
             </div>
         </div>
     );
