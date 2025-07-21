@@ -6,6 +6,7 @@ from app.routes.realtime import realtime_router
 from app.routes.books import books_router
 from app.routes.prompts import prompts_router
 from app.routes.auth import router as auth_router
+from app.routes.conversations import router as conversations_router
 from app.config import CORS_ORIGINS
 
 app = FastAPI(title="Convo Book API", description="Real-time communication hub")
@@ -25,6 +26,7 @@ app.include_router(realtime_router)
 app.include_router(books_router, prefix="/api")
 app.include_router(prompts_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
+app.include_router(conversations_router, prefix="/api", tags=["conversations"])
 
 # Root API endpoint
 @app.get("/")

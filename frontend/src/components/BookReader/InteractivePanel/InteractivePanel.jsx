@@ -12,8 +12,8 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
     const [lastAudioTimestamp, setLastAudioTimestamp] = useState(null);
 
     // Voice chat hooks
-    const pageVoiceChat = usePageVoiceChat();
-    const transcriptionWS = useTranscriptionWebSocket();
+    const pageVoiceChat = usePageVoiceChat(bookId, pageNumber);
+    const transcriptionWS = useTranscriptionWebSocket(bookId, pageNumber);
 
     // Connect when panel opens with a question
     useEffect(() => {
@@ -65,8 +65,8 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
     };
 
     const canUseVoiceButton = () => {
-        // Disable voice button if audio is playing, not connected, or not in chat mode
-        return !isAudioPlaying && pageVoiceChat.isConnected && pageVoiceChat.isChatMode;
+        // Disable voice button if audio is playing or not connected
+        return !isAudioPlaying && pageVoiceChat.isConnected;
     };
 
     const playQuestionAudioAsync = async (audioUrl) => {

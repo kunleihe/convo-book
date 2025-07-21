@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { apiRequest } from '../utils/api';
+import { storeConversationMessage } from '../utils/conversationStorage';
 
-export const usePageVoiceChat = () => {
+export const usePageVoiceChat = (bookId, pageNumber) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -235,6 +236,17 @@ export const usePageVoiceChat = () => {
                 case 'response.audio_transcript.done':
                     if (currentTranscriptRef.current) {
                         addConversationMessage(currentTranscriptRef.current, false);
+
+                        // Store AI message
+                        if (currentBookId.current && currentPageNumber.current) {
+                            storeConversationMessage(
+                                currentTranscriptRef.current,
+                                'ai',
+                                currentBookId.current,
+                                currentPageNumber.current
+                            );
+                        }
+
                         currentTranscriptRef.current = '';
                     }
 
@@ -440,6 +452,18 @@ export const usePageVoiceChat = () => {
         setCurrentStreamingTranscript('');
         setStreamingResponseId(null);
     }, []);
+
+    // Store book/page context for conversation storage
+    const currentBookId = useRef(bookId);
+    const currentPageNumber = useRef(pageNumber);
+
+    // Update context when parameters change
+    if (bookId !== currentBookId.current) {
+        currentBookId.current = bookId;
+    }
+    if (pageNumber !== currentPageNumber.current) {
+        currentPageNumber.current = pageNumber;
+    }
 
     return {
         isConnected,

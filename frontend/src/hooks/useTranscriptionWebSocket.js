@@ -1,12 +1,25 @@
 import { useState, useRef, useCallback } from 'react';
+import { storeConversationMessage } from '../utils/conversationStorage';
 
-export const useTranscriptionWebSocket = () => {
+export const useTranscriptionWebSocket = (bookId, pageNumber) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [transcriptions, setTranscriptions] = useState([]);
     const [connectionStatus, setConnectionStatus] = useState('disconnected');
 
     const websocketRef = useRef(null);
+
+    // Store book/page context for conversation storage
+    const currentBookId = useRef(bookId);
+    const currentPageNumber = useRef(pageNumber);
+
+    // Update context when parameters change
+    if (bookId !== currentBookId.current) {
+        currentBookId.current = bookId;
+    }
+    if (pageNumber !== currentPageNumber.current) {
+        currentPageNumber.current = pageNumber;
+    }
 
     const addTranscription = useCallback((transcription, timestamp = new Date()) => {
         setTranscriptions(prev => [...prev, { text: transcription, timestamp }]);
@@ -48,6 +61,17 @@ export const useTranscriptionWebSocket = () => {
                 if (message.transcript) {
                     addTranscription(`[TRANSCRIPTION] ${message.transcript}`, new Date());
                     addDebugMessage(`Transcription completed: "${message.transcript}"`);
+
+                    // Store user message
+                    if (currentBookId.current && currentPageNumber.current) {
+                        storeConversationMessage(
+                            message.transcript,
+                            'user',
+                            currentBookId.current,
+                            currentPageNumber.current
+                        );
+                    }
+
                     console.log('[Transcription] Completed:', message);
                 } else {
                     addDebugMessage('Transcription completed but no transcript provided');

@@ -4,7 +4,7 @@ Database initialization script for different environments
 """
 import os
 import sys
-from app.db.create_db import Base, engine
+from app.db.database import Base, engine
 from app.db.add_users import add_users
 from app.config import ENVIRONMENT, SQLALCHEMY_DATABASE_URL
 
