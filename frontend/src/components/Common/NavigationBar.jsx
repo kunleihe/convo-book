@@ -1,12 +1,19 @@
 import React from 'react';
-import { Navbar, Nav, Container } from 'react-bootstrap';
+import { Navbar, Nav, Container, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth.jsx';
 
 const NavigationBar = () => {
     const navigate = useNavigate();
+    const { logout, user } = useAuth();
 
     const handleLibraryClick = () => {
         navigate('/');
+    };
+
+    const handleLogout = () => {
+        logout();
+        // Navigation will be handled automatically by the auth system
     };
 
     return (
@@ -21,6 +28,14 @@ const NavigationBar = () => {
                         <Nav.Link onClick={handleLibraryClick} style={{ cursor: 'pointer' }}>
                             Library
                         </Nav.Link>
+                        <Button
+                            variant="outline-secondary"
+                            size="sm"
+                            onClick={handleLogout}
+                            className="ms-2"
+                        >
+                            Logout
+                        </Button>
                     </Nav>
                 </Navbar.Collapse>
             </Container>

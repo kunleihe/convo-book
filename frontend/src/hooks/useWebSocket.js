@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { apiRequest } from '../utils/api';
 
 export const useWebSocket = () => {
     const [isConnected, setIsConnected] = useState(false);
@@ -321,7 +322,7 @@ export const useWebSocket = () => {
 
         try {
             // Fetch session configuration from backend
-            const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/session/config`);
+            const response = await apiRequest(`${import.meta.env.VITE_API_URL || ''}/session/config`);
             if (!response.ok) {
                 throw new Error(`Failed to fetch session config: ${response.status}`);
             }

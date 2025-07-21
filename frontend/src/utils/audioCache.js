@@ -1,3 +1,5 @@
+import { publicRequest } from './api.js';
+
 class AudioCache {
     constructor() {
         this.cache = new Map();
@@ -23,7 +25,7 @@ const audioCache = new AudioCache();
 export const fetchAudioWithRetry = async (audioUrl, maxRetries = 2) => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            const response = await fetch(audioUrl);
+            const response = await publicRequest(audioUrl);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return await response.blob();
         } catch (error) {

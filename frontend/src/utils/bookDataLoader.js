@@ -1,10 +1,11 @@
 // Book data loading utilities
+import { apiRequest } from './api.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export const loadBookData = async (bookId) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/books/${bookId}`);
+        const response = await apiRequest(`${API_BASE_URL}/api/books/${bookId}`);
         if (!response.ok) {
             throw new Error(`Failed to load book: ${bookId}`);
         }
@@ -18,7 +19,7 @@ export const loadBookData = async (bookId) => {
 
 export const loadAllBooks = async () => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/books`);
+        const response = await apiRequest(`${API_BASE_URL}/api/books`);
         if (!response.ok) {
             throw new Error('Failed to fetch books from API');
         }

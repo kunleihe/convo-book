@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { apiRequest } from '../utils/api';
 
 export const usePageVoiceChat = () => {
     const [isConnected, setIsConnected] = useState(false);
@@ -270,7 +271,7 @@ export const usePageVoiceChat = () => {
             // Fetch page-specific prompt
             console.log(`[PageVoiceChat] Fetching prompt for book ${bookId}, page ${pageNumber}`);
             const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-            const promptResponse = await fetch(`${API_BASE_URL}/api/books/${bookId}/page/${pageNumber}/prompt`);
+            const promptResponse = await apiRequest(`${API_BASE_URL}/api/books/${bookId}/page/${pageNumber}/prompt`);
 
             if (!promptResponse.ok) {
                 throw new Error(`Failed to fetch prompt: ${promptResponse.status}`);

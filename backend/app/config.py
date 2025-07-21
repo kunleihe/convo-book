@@ -69,3 +69,19 @@ TRANSCRIPTION_CONFIG = {
         "item.input_audio_transcription.logprobs"
     ]
 }
+
+SQLALCHEMY_DATABASE_URL = "sqlite:///./app.db"
+
+# JWT Configuration
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+JWT_ALGORITHM = "HS256"
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+
+# Validate JWT_SECRET_KEY
+if ENVIRONMENT == "production" and not JWT_SECRET_KEY:
+    raise ValueError("JWT_SECRET_KEY environment variable must be set in production")
+elif not JWT_SECRET_KEY:
+    # Generate a random key for development (will change on restart)
+    import secrets
+    JWT_SECRET_KEY = secrets.token_urlsafe(64)
+    print("⚠️  Using auto-generated JWT secret key for development. Set JWT_SECRET_KEY in .env for persistence.")
