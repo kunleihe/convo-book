@@ -269,7 +269,8 @@ export const usePageVoiceChat = () => {
         try {
             // Fetch page-specific prompt
             console.log(`[PageVoiceChat] Fetching prompt for book ${bookId}, page ${pageNumber}`);
-            const promptResponse = await fetch(`http://localhost:8000/api/books/${bookId}/page/${pageNumber}/prompt`);
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+            const promptResponse = await fetch(`${API_BASE_URL}/api/books/${bookId}/page/${pageNumber}/prompt`);
 
             if (!promptResponse.ok) {
                 throw new Error(`Failed to fetch prompt: ${promptResponse.status}`);
@@ -280,7 +281,9 @@ export const usePageVoiceChat = () => {
             console.log('[PageVoiceChat] Prompt fetched successfully');
 
             // Create WebSocket connection
-            websocketRef.current = new WebSocket('ws://localhost:8000/realtime');
+            const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+            const wsBase = API_BASE_URL.replace(/^https?:/, wsProtocol + ':');
+            websocketRef.current = new WebSocket(`${wsBase}/realtime`);
 
             websocketRef.current.onopen = () => {
                 console.log('[PageVoiceChat] Connected to server');
@@ -295,7 +298,7 @@ export const usePageVoiceChat = () => {
                             session: {
                                 modalities: ["text", "audio"],
                                 instructions: promptData.prompt,
-                                voice: "alloy",
+                                voice: "shimmer",
                                 input_audio_format: "pcm16",
                                 output_audio_format: "pcm16",
                                 input_audio_transcription: {

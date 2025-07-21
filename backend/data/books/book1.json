@@ -18,9 +18,13 @@
             "question": {
                 "questionText": "Did you ever ride in a car going really fast? How did it feel?",
                 "follow-up": [
-                    "Imagine you’re in a fast car. Will it make you feel excited or a little scared?" 
+                    "Imagine you’re in a fast car. Will it make you feel excited or a little scared?"
                 ],
-                "audioUrl": "/sample_book/audios/questions/page1_question.wav"
+                "audioUrl": "/sample_book/audios/questions/page2_question.wav"
+            },
+            "discussion": {
+                "discussionText": "Now, family discussion time! Please talk to each other if you think Elinor and her friends' car will go fast. What do you think will happen?",
+                "audioUrl": "/sample_book/audios/discussions/page2_discussion.wav"
             },
             "promptTemplate": "template1"
         },
@@ -48,8 +52,12 @@
             "imageUrl": "/sample_book/images/page6.png",
             "narrationAudioUrl": "https://example.com/books/book1/narration6.mp3",
             "question": {
-                "questionText": "Camila’s car is faster. Let's look closely at Elinor’s car and Camilla’s car to see if we can figure out why Camilla’s is faster. How is Camilla's car different from Elinor’s car?",
+                "questionText": "Camilla’s car is faster. Let's look closely at Elinor’s car and Camilla’s car to see if we can figure out why Camilla’s is faster. How is Camilla's car different from Elinor’s car?",
                 "audioUrl": "/sample_book/audios/questions/page6_question.wav"
+            },
+            "discussion": {
+                "discussionText": "Time for a family discussion! Please talk to each other about your family's car. What is it like?",
+                "audioUrl": "/sample_book/audios/discussions/page6_discussion.wav"
             },
             "promptTemplate": "template1"
         },
@@ -74,10 +82,14 @@
                 "questionText": "Ari thinks that changing the color of their car will make it as fast as Camila’s car. What can Elinor and her friends do to test if changing the color can make their car go faster?",
                 "answerText": "They can change the color of their car to yellow and have a race with Camilla to see if their car goes as fast as Camila’s car.",
                 "follow-up": [
-                    "Ari thinks that changing the color of their car will make it go faster. Do you think they should change the color of their car to yellow to test it out?",
+                    "Ari thinks that changing the color of their car will make it go faster. Do you think they should change the color of their car to yellow?",
                     "What should they do to test it is as fast as Camila’s car after they painted their car yellow?"
                 ],
                 "audioUrl": "/sample_book/audios/questions/page9_question.wav"
+            },
+            "discussion": {
+                "discussionText": "It's time for a family discussion! Please talk to each other about one time when you tested something out. What did you do?",
+                "audioUrl": "/sample_book/audios/discussions/page9_discussion.wav"
             },
             "promptTemplate": "template2"
         }

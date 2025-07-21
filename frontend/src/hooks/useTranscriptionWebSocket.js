@@ -8,8 +8,8 @@ export const useTranscriptionWebSocket = () => {
 
     const websocketRef = useRef(null);
 
-    const addTranscription = useCallback((transcription) => {
-        setTranscriptions(prev => [...prev, transcription]);
+    const addTranscription = useCallback((transcription, timestamp = new Date()) => {
+        setTranscriptions(prev => [...prev, { text: transcription, timestamp }]);
     }, []);
 
     const addDebugMessage = useCallback((message) => {
@@ -46,7 +46,7 @@ export const useTranscriptionWebSocket = () => {
 
             case 'conversation.item.input_audio_transcription.completed':
                 if (message.transcript) {
-                    addTranscription(`[TRANSCRIPTION] ${message.transcript}`);
+                    addTranscription(`[TRANSCRIPTION] ${message.transcript}`, new Date());
                     addDebugMessage(`Transcription completed: "${message.transcript}"`);
                     console.log('[Transcription] Completed:', message);
                 } else {
@@ -127,8 +127,10 @@ export const useTranscriptionWebSocket = () => {
             setConnectionStatus('connecting');
             console.log('[Transcription] Connecting via backend proxy...');
 
-            // Connect to our backend transcription proxy
-            const wsUrl = `ws://localhost:8000/transcription`;
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+            const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
+            const wsBase = API_BASE_URL.replace(/^https?:/, wsProtocol + ':');
+            const wsUrl = `${wsBase}/transcription`;
             addDebugMessage(`Connecting to: ${wsUrl}`);
 
             const ws = new WebSocket(wsUrl);
