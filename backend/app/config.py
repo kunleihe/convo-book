@@ -28,7 +28,7 @@ def get_cors_origins():
     elif ENVIRONMENT == "staging":
         # Staging origins
         return [
-            "https://staging.yourdomain.com",
+            "https://staging.d2j24wh52qkpf2.amplifyapp.com",  # Staging Amplify URL (will be created)
             "http://localhost:5173",  # For local testing against staging
         ]
     else:
@@ -75,12 +75,22 @@ TRANSCRIPTION_CONFIG = {
 def get_database_url():
     """Get database URL based on environment"""
     if ENVIRONMENT == "production":
-        return "sqlite:///./app_prod.db"
-    elif ENVIRONMENT == "development":
-        return "sqlite:///./app_dev.db"
+        # Will use RDS for production later
+        db_url = os.getenv("DATABASE_URL")
+        if db_url:
+            return db_url
+        else:
+            # Fallback to SQLite for now (will be migrated to RDS later)
+            return "sqlite:///./app_prod.db"
+    elif ENVIRONMENT == "staging":
+        # Use RDS for staging
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            raise ValueError("DATABASE_URL environment variable must be set for staging environment")
+        return db_url
     else:
-        # Default/local development
-        return "sqlite:///./app.db"
+        # Keep SQLite for local development
+        return "sqlite:///./app_dev.db"
 
 SQLALCHEMY_DATABASE_URL = get_database_url()
 
