@@ -328,7 +328,8 @@ export const useWebSocket = () => {
             }
             const sessionConfig = await response.json();
 
-            const wsProtocol = import.meta.env.VITE_API_URL?.startsWith('https') ? 'wss' : 'ws';
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+            const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
             const wsBase = API_BASE_URL.replace(/^https?:/, wsProtocol + ':');
             websocketRef.current = new WebSocket(`${wsBase}/realtime`);
 

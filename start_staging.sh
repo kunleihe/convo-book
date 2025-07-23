@@ -1,31 +1,35 @@
 #!/bin/bash
 
-# Development script to start both backend and frontend servers
+# Staging script to start both backend and frontend servers
 
-echo "🚀 Starting Convo Book Development Environment..."
+echo "🚀 Starting Convo Book Staging Environment..."
 
-# Set environment for development
-export ENVIRONMENT=development
+# Set environment for staging
+export ENVIRONMENT=staging
 
 # Copy appropriate env files if they exist
-echo "📝 Setting up environment files..."
-if [ -f "backend/app/.env.development" ]; then
-    cp backend/app/.env.development backend/app/.env
-    echo "✅ Copied backend/.env.development to backend/.env"
+echo "📝 Setting up staging environment files..."
+if [ -f "backend/app/.env.staging" ]; then
+    cp backend/app/.env.staging backend/app/.env
+    echo "✅ Copied backend/.env.staging to backend/.env"
 else
-    echo "⚠️  backend/app/.env.development not found, using existing .env"
+    echo "❌ backend/app/.env.staging not found!"
+    echo "Please create backend/app/.env.staging with staging configuration"
+    exit 1
 fi
 
-if [ -f "frontend/.env.development" ]; then
-    cp frontend/.env.development frontend/.env
-    echo "✅ Copied frontend/.env.development to frontend/.env"
+if [ -f "frontend/.env.staging" ]; then
+    cp frontend/.env.staging frontend/.env
+    echo "✅ Copied frontend/.env.staging to frontend/.env"
 else
-    echo "⚠️  frontend/.env.development not found, using existing .env"
+    echo "❌ frontend/.env.staging not found!"
+    echo "Please create frontend/.env.staging with staging configuration"
+    exit 1
 fi
 
 # Function to kill background processes on exit
 cleanup() {
-    echo "🛑 Stopping servers..."
+    echo "🛑 Stopping staging servers..."
     
     # Kill specific processes if PIDs are available
     if [ ! -z "$BACKEND_PID" ]; then
@@ -53,7 +57,7 @@ cleanup() {
     pkill -f "vite" 2>/dev/null
     pkill -f "uvicorn.*--port 8000" 2>/dev/null
     
-    echo "🏁 Cleanup complete!"
+    echo "🏁 Staging cleanup complete!"
     exit
 }
 
@@ -61,7 +65,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # Start backend server
-echo "🔧 Starting Backend (FastAPI) on port 8000..."
+echo "🔧 Starting Backend (FastAPI) for staging on port 8000..."
 cd backend
 if [ -d "../venv" ]; then
     source ../venv/bin/activate
@@ -73,17 +77,18 @@ cd ..
 # Wait a moment for backend to start
 sleep 2
 
-# Start frontend development server
-echo "⚛️  Starting Frontend (React) on port 5173..."
+# Start frontend development server with staging mode
+echo "⚛️  Starting Frontend (React) for staging on port 5173..."
 cd frontend
-npm run dev &
+npm run dev:staging &
 FRONTEND_PID=$!
 cd ..
 
-echo "✅ Development environment is ready!"
+echo "✅ Staging environment is ready!"
 echo "📱 Frontend (React): http://localhost:5173"
 echo "🔧 Backend API: http://localhost:8000"
 echo "📚 API Documentation: http://localhost:8000/docs"
+echo "🌍 Environment: STAGING"
 echo ""
 echo "Press Ctrl+C to stop all servers"
 

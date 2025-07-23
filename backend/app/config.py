@@ -1,10 +1,19 @@
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-# Look for .env file in the same directory as config.py
-env_path = os.path.join(os.path.dirname(__file__), '.env')
+# Determine environment and load appropriate .env file
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+env_file = f".env.{ENVIRONMENT}"
+env_path = os.path.join(os.path.dirname(__file__), env_file)
+
+# Fallback to .env if environment-specific file doesn't exist
+if not os.path.exists(env_path):
+    env_path = os.path.join(os.path.dirname(__file__), '.env')
+
 load_dotenv(env_path)
+
+# Re-read environment after loading the file (in case it was set in the .env file)
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
 # Configuration variables
 VENDOR_WS_URL = os.getenv("OPENAI_REALTIME_URL")
@@ -16,8 +25,6 @@ OPENAI_REST_BASE_URL = "https://api.openai.com/v1"
 OPENAI_TRANSCRIPTION_WS_URL = "wss://api.openai.com/v1/realtime?intent=transcription"
 
 # CORS Configuration - Environment Aware
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-
 def get_cors_origins():
     """Get CORS allowed origins based on environment"""
     if ENVIRONMENT == "production":
@@ -36,7 +43,6 @@ def get_cors_origins():
         return [
             "http://localhost:5173",
             "http://localhost:8000",
-            "https://dev.d2j24wh52qkpf2.amplifyapp.com",  # Development frontend
         ]
 
 CORS_ORIGINS = get_cors_origins()
@@ -99,7 +105,24 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
-# Validate JWT_SECRET_KEY
+# Configuration Validation
+def validate_environment_config():
+    """Validate that all required environment variables are set"""
+    required_vars = {
+        'development': ['OPENAI_API_KEY'],
+        'staging': ['OPENAI_API_KEY', 'DATABASE_URL', 'JWT_SECRET_KEY'],
+        'production': ['OPENAI_API_KEY', 'DATABASE_URL', 'JWT_SECRET_KEY']
+    }
+    
+    missing_vars = []
+    for var in required_vars.get(ENVIRONMENT, []):
+        if not os.getenv(var):
+            missing_vars.append(var)
+    
+    if missing_vars:
+        raise ValueError(f"Missing required environment variables for {ENVIRONMENT}: {missing_vars}")
+
+# Validate JWT_SECRET_KEY and generate for development
 if ENVIRONMENT == "production" and not JWT_SECRET_KEY:
     raise ValueError("JWT_SECRET_KEY environment variable must be set in production")
 elif not JWT_SECRET_KEY:
@@ -107,3 +130,12 @@ elif not JWT_SECRET_KEY:
     import secrets
     JWT_SECRET_KEY = secrets.token_urlsafe(64)
     print("⚠️  Using auto-generated JWT secret key for development. Set JWT_SECRET_KEY in .env for persistence.")
+
+# Run validation
+validate_environment_config()
+
+# Print environment info for debugging
+print(f"🔧 Environment: {ENVIRONMENT}")
+print(f"📂 Config file: {env_path}")
+print(f"🗄️  Database: {SQLALCHEMY_DATABASE_URL}")
+print(f"🌐 CORS Origins: {CORS_ORIGINS}")
