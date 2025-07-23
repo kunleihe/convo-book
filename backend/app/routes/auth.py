@@ -4,7 +4,6 @@ from pydantic import BaseModel
 from ..db.database import SessionLocal
 from ..db.models import User
 from ..config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_ACCESS_TOKEN_EXPIRE_MINUTES
-import bcrypt
 import jwt
 import datetime
 
@@ -24,7 +23,7 @@ def get_db():
 @router.post("/login")
 def login(login_request: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == login_request.username).first()
-    if not user or not bcrypt.checkpw(login_request.password.encode(), user.password_hash.encode()):
+    if not user or user.password != login_request.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = jwt.encode(
         {"sub": user.username, "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)},

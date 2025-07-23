@@ -60,8 +60,7 @@ def migrate_data():
             # Create new user in RDS
             new_user = User(
                 username=user.username,
-                email=user.email,
-                password_hash=user.password_hash
+                password=user.password
             )
             rds_session.add(new_user)
             print(f"   ✅ Migrated user: {user.username}")

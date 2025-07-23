@@ -5,6 +5,6 @@ python-dotenv==1.0.1     # For loading environment variables from .env files
 python-multipart==0.0.9  # For handling form data (file uploads, etc.)
 openai==1.51.0           # For OpenAI API integration (if you use it)
 sqlalchemy==2.0.36       # ORM for database (SQLite, etc.)
-bcrypt==4.3.0            # For password hashing
+
 PyJWT==2.10.1            # For JWT token authentication
 psycopg2-binary==2.9.10   # PostgreSQL adapter for Python (for RDS)

@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """
 Database initialization script for different environments
+
+To run this script:
+export ENVIRONMENT=staging
+export DATABASE_URL=your_rds_connection_string
+python init_database.py
 """
 import os
 import sys

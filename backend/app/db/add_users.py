@@ -1,6 +1,5 @@
 from ..db.database import SessionLocal
 from ..db.models import User
-import bcrypt
 
 users_to_add = [
     ("user1", "1234"),
@@ -11,13 +10,12 @@ users_to_add = [
 def add_users():
     db = SessionLocal()
     for username, password in users_to_add:
-        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         # check if user already exists
         existing_user = db.query(User).filter(User.username == username).first()
         if existing_user:
             print(f"User {username} already exists")
             continue
-        user = User(username=username, password_hash=password_hash.decode('utf-8'))
+        user = User(username=username, password=password)
         db.add(user)
     db.commit()
     db.close()
