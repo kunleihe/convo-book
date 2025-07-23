@@ -7,4 +7,4 @@ openai==1.51.0           # For OpenAI API integration (if you use it)
 sqlalchemy==2.0.36       # ORM for database (SQLite, etc.)
 bcrypt==4.3.0            # For password hashing
 PyJWT==2.10.1            # For JWT token authentication
-psycopg-binary==3.2.9   # PostgreSQL adapter for Python (for RDS)
+psycopg2-binary==2.9.10   # PostgreSQL adapter for Python (for RDS)

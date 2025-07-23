@@ -4,7 +4,6 @@ from app.config import CORS_ORIGINS, ENVIRONMENT
 
 health_check_router = APIRouter()
 
-
 @health_check_router.get("/")
 async def health_check():
     return {
