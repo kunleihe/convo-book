@@ -28,7 +28,7 @@ def get_cors_origins():
     elif ENVIRONMENT == "staging":
         # Staging origins
         return [
-            "https://staging.d2j24wh52qkpf2.amplifyapp.com",  # Staging Amplify URL (will be created)
+            "https://staging.d2j24wh52qkpf2.amplifyapp.com",  # Staging Amplify URL
             "http://localhost:5173",  # For local testing against staging
         ]
     else:
