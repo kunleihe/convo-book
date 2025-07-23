@@ -24,3 +24,8 @@ def add_users():
 
 if __name__ == "__main__":
     add_users()
+
+
+# run this in the terminal in /backend to add users 
+# export ENVIRONMENT=staging
+# python -c "from app.db.add_users import add_users; add_users()"
