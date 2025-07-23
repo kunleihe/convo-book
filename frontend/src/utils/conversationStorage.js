@@ -1,5 +1,7 @@
 import { apiRequest } from './api';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
 export const storeConversationMessage = async (text, sender, bookId, pageNumber) => {
     try {
         const token = localStorage.getItem('authToken');
@@ -8,7 +10,7 @@ export const storeConversationMessage = async (text, sender, bookId, pageNumber)
             return;
         }
 
-        const response = await apiRequest('/api/conversations/', {
+        const response = await apiRequest(`${API_BASE_URL}/api/conversations/`, {
             method: 'POST',
             body: JSON.stringify({
                 book_id: bookId,
@@ -41,7 +43,7 @@ export const getConversationHistory = async (bookId, pageNumber) => {
         if (bookId) params.append('book_id', bookId);
         if (pageNumber !== undefined) params.append('page_number', pageNumber);
 
-        const response = await apiRequest(`/api/conversations/?${params.toString()}`);
+        const response = await apiRequest(`${API_BASE_URL}/api/conversations/?${params.toString()}`);
 
         if (!response.ok) {
             throw new Error(`Failed to retrieve conversations: ${response.status}`);
