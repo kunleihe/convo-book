@@ -1,23 +1,23 @@
 from fastapi import APIRouter, HTTPException
 import os
-import json
+import yaml
 from .books import load_book_data
 
 prompts_router = APIRouter()
 
 def get_prompt_templates():
-    """Load prompt templates from JSON file"""
+    """Load prompt templates from YAML file"""
     current_file = os.path.abspath(__file__)
     backend_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
-    templates_file = os.path.join(backend_root, "data", "prompt-templates.json")
+    templates_file = os.path.join(backend_root, "data", "prompt-templates.yaml")
     
     try:
         with open(templates_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            return yaml.safe_load(f)
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="Prompt templates file not found")
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Invalid JSON in prompt templates file")
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=500, detail=f"Invalid YAML in prompt templates file: {str(e)}")
 
 @prompts_router.get("/books/{book_id}/page/{page_number}/prompt")
 async def get_page_prompt(book_id: str, page_number: int):
