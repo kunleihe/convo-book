@@ -6,3 +6,14 @@ storyText: |
   Mr. Rabbit heard the kids talking about the shapes of fast things. He
   walked over with a big smile on his face.
   "Oh yes," he said. "That’s called being streamlined."
+
+question:
+  questionText: |
+    Camilla’s car, the bird, and the fish all look pointy in the front and round in the middle.
+    What special word did Mr. Rabbit use to describe this shape?
+  audioUrl: /sample_book/audios/questions/page23_question.wav
+  answerText: Streamlined.
+  follow-up:
+  - Did Mr. Rabbit call it streamlined or boxy?
+
+promptTemplate: template2  

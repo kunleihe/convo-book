@@ -6,3 +6,12 @@ storyText: |
   “Being streamlined means it’s easier for the air to go around you, instead
   of pushing you back.  So, things that are streamlined can move through air faster,
   but boxy things get slowed down.” explained Mr. Rabbit.
+
+question:
+  questionText: What moves through the air slower, boxy things or pointy things? Why?
+  audioUrl: /sample_book/audios/questions/page24_question.wav
+  answerText: Boxy things. They move through air slower because the air pushes them back. 
+  follow-up:
+  - Does the air push the boxy things back or forward?
+
+promptTemplate: template2  

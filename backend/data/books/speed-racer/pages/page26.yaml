@@ -4,3 +4,14 @@ narrationAudioUrl: https://example.com/books/speed-racer/narration22.mp3
 
 storyText: Then, Elinor, Olive, and Ari pushed their car back up the hill for one
   more try.  Their new car had a pointy shape. They were all set to race Camilla again!
+
+question:
+  questionText: |
+    Now Elinor’s car and Camila’s car are both streamlined.
+    Let's make a prediction! Do you predict that Elinor’s car will go as fast as Camila’s car? Why or why not?
+  audioUrl: /sample_book/audios/questions/page26_question.wav
+  answerText: Yes. Because now Elinor’s car is streamlined, just like Camilla’s, so it can move through the air more easily.
+  follow-up:
+  - Do streamlined things or boxy things move through air more easily?
+
+promptTemplate: template2  

@@ -17,7 +17,7 @@ question:
   follow-up:
   - Ari thinks that changing the color of their car will make it go faster. Do you
     think they should change the color of their car to yellow?
-  - What should they do to test it is as fast as Camila’s car after they painted their
+  - What should they do to test if their car is as fast as Camila’s car after they painted their
     car yellow?
 
 promptTemplate: template2
