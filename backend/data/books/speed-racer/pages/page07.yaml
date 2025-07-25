@@ -6,3 +6,11 @@ storyText: |
   "Your car is nice, too!" said Camilla kindly.
   "Thanks, Camilla! We made it ourselves. But it’s not going as fast as yours," said
   Elinor, scratching her chin. "I wonder how we can make our car go faster."
+
+questions:
+  - id: "q1"
+    questionType: open-ended
+    questionText: What can Elinor and her friends do to make their car go faster? 
+    audioUrl: /sample_book/audios/questions/page7_q1.wav
+    follow-up:
+    - What do you think Elinor and her friends should change on their car?

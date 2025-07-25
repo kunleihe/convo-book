@@ -3,14 +3,19 @@ imageUrl: /sample_book/images/page6.png
 narrationAudioUrl: https://example.com/books/speed-racer/narration6.mp3
 
 storyText: |
-  The three friends looked at Camilla’s car. Camilla’s car was so cool—and
+  The three friends looked at Camilla's car. Camilla's car was so cool—and
   really fast. It was bright yellow, with a racing stripe. It even had a nice cup
   holder inside!
 
-question:
-  questionText: Camilla’s car is faster. Let's look closely at Elinor’s car and Camilla’s
-    car to see if we can figure out why Camilla’s is faster. How is Camilla's car
-    different from Elinor’s car?
-  audioUrl: /sample_book/audios/questions/page6_question.wav
+questions:
+  - id: "q1"
+    questionType: open-ended
+    questionText: Camilla's car is faster. Let's look closely at Elinor's car and Camilla's
+      car to see if we can figure out why Camilla's is faster. How is Camilla's car
+      different from Elinor's car?
+    audioUrl: /sample_book/audios/questions/page6_q1.wav
+    follow-up:
+    - Did you notice any differences between the colors of their car?
+    - Camilla’s car has a really nice cup holder. Does Elinor’s car also have one?
 
 promptTemplate: template1

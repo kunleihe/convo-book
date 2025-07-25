@@ -3,21 +3,6 @@ imageUrl: /sample_book/images/page9.png
 narrationAudioUrl: https://example.com/books/speed-racer/narration5.mp3
 
 storyText: |
-  I know! Maybe it’s the color!" Ari suggested. "If we paint our car yellow
-  and add stripes like Camilla’s, it might go faster!" "That’s a great idea!" agreed
-  Elinor. "Let’s take it back to your house and make some changes," said Olive.
-
-question:
-  questionText: Ari thinks that changing the color of their car will make it as fast
-    as Camila’s car. What can Elinor and her friends do to test if changing the color
-    can make their car go faster?
-  audioUrl: /sample_book/audios/questions/page9_question.wav
-  answerText: They can change the color of their car to yellow and have a race with
-    Camilla to see if their car goes as fast as Camila’s car.
-  follow-up:
-  - Ari thinks that changing the color of their car will make it go faster. Do you
-    think they should change the color of their car to yellow?
-  - What should they do to test if their car is as fast as Camila’s car after they painted their
-    car yellow?
-
-promptTemplate: template2
+  I know! Maybe it's the color!" Ari suggested. "If we paint our car yellow
+  and add stripes like Camilla's, it might go faster!" "That's a great idea!" agreed
+  Elinor. "Let's take it back to your house and make some changes," said Olive.

@@ -4,15 +4,17 @@ narrationAudioUrl: https://example.com/books/speed-racer/narration2.mp3
 
 storyText: |
   Just then, Mr. Rabbit walked over to see the car.
-  "Do you think it’ll go fast, Mr. Rabbit?" asked Olive curiously.
+  "Do you think it'll go fast, Mr. Rabbit?" asked Olive curiously.
   "I want to feel the wind in my ears!" added Elinor.
-  "Well, there’s only one way to find out," said Mr. Rabbit. "Are you going to take
+  "Well, there's only one way to find out," said Mr. Rabbit. "Are you going to take
   it for a ride?"
 
-question:
-  questionText: Did you ever ride in a car going really fast? How did it feel?
-  audioUrl: /sample_book/audios/questions/page2_question.wav
-  follow-up:
-  - Imagine you’re in a fast car. Will it make you feel excited or a little scared?
+questions:
+  - id: "q1"
+    questionType: open-ended
+    questionText: Did you ever ride in a car going really fast? How did it feel?
+    audioUrl: /sample_book/audios/questions/page2_q1.wav
+    follow-up:
+    - Imagine you're in a fast car. Will it make you feel excited or a little scared?
 
 promptTemplate: template1

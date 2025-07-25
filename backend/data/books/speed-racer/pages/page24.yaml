@@ -3,15 +3,27 @@ imageUrl: /sample_book/images/page24.png
 narrationAudioUrl: https://example.com/books/speed-racer/narration20.mp3
 
 storyText: |
-  “Being streamlined means it’s easier for the air to go around you, instead
+  "Being streamlined means it's easier for the air to go around you, instead
   of pushing you back.  So, things that are streamlined can move through air faster,
-  but boxy things get slowed down.” explained Mr. Rabbit.
+  but boxy things get slowed down." explained Mr. Rabbit.
 
-question:
-  questionText: What moves through the air slower, boxy things or pointy things? Why?
-  audioUrl: /sample_book/audios/questions/page24_question.wav
-  answerText: Boxy things. They move through air slower because the air pushes them back. 
-  follow-up:
-  - Does the air push the boxy things back or forward?
+questions:
+  - id: "q1"
+    questionType: definitive-answer
+    questionText: What moves through the air slower, boxy things or pointy things? Why?
+    audioUrl: /sample_book/audios/questions/page24_q1.wav
+    answerText: Boxy things. They move through air slower because the air pushes them back. 
+    follow-up:
+    - Does the air push pointy things or boxy things back?
+    - Does the air push the boxy things back or forward?
+  - id: "q2"
+    questionType: definitive-answer
+    questionText: Let’s imagine building a rocket. Would you make it boxy or pointy? Why?
+    audioUrl: /sample_book/audios/questions/page24_q2.wav
+    answerText: Pointy. Because the air goes around the rocket and pushes it up.
+    follow-up:
+    - Do boxy things or pointy things move through the air faster?
+    - Why do you want it to be pointy?
+    - How does being pointy help the rocket go faster?
 
 promptTemplate: template2  
