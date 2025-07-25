@@ -2,12 +2,13 @@ import { useState, useRef, useCallback } from 'react';
 import { apiRequest } from '../utils/api';
 import { storeConversationMessage } from '../utils/conversationStorage';
 
-export const usePageVoiceChat = (bookId, pageNumber) => {
+export const usePageVoiceChat = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
     const [conversationMessages, setConversationMessages] = useState([]);
     const [currentPrompt, setCurrentPrompt] = useState(null);
+    const [currentQuestion, setCurrentQuestion] = useState(null);
 
     // Streaming transcript states
     const [currentStreamingTranscript, setCurrentStreamingTranscript] = useState('');
@@ -16,7 +17,6 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
 
     const websocketRef = useRef(null);
     const responseAudioBufferRef = useRef([]);
-    const isPlayingResponseRef = useRef(false);
 
     // Web Audio API refs for streaming
     const audioContextRef = useRef(null);
@@ -29,6 +29,12 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
     // Track timing for debugging
     const userInputTimeRef = useRef(null);
     const firstAudioChunkRef = useRef(false);
+
+    // Track current question and book/page info for callbacks
+    const currentQuestionRef = useRef(null);
+    const currentBookIdRef = useRef(null);
+    const currentPageNumberRef = useRef(null);
+    const sendFormattedInitialMessageRef = useRef(null);
 
     const addConversationMessage = useCallback((message, isUser = false) => {
         setConversationMessages(prev => [...prev, {
@@ -180,6 +186,65 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
         isStreamingAudioRef.current = false;
     }, []);
 
+    const sendFormattedInitialMessage = useCallback(async (childResponse) => {
+        if (!currentQuestionRef.current || !currentBookIdRef.current || !currentPageNumberRef.current) {
+            console.error('[PageVoiceChat] Missing context for formatting message');
+            setError('Missing context for conversation');
+            return false;
+        }
+
+        try {
+            console.log('[PageVoiceChat] Formatting initial message with child response:', childResponse);
+
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+            const response = await apiRequest(`${API_BASE_URL}/api/prompts/format-initial-message`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    book_id: currentBookIdRef.current,
+                    page_number: currentPageNumberRef.current,
+                    question_id: currentQuestionRef.current.id,
+                    child_response: childResponse
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to format message: ${response.status}`);
+            }
+
+            const { formatted_message } = await response.json();
+            console.log('[PageVoiceChat] Formatted message:', formatted_message.substring(0, 200) + '...');
+
+            // Send formatted message to OpenAI
+            const messageItem = {
+                type: "conversation.item.create",
+                item: {
+                    type: "message",
+                    role: "user",
+                    content: [{ type: "text", text: formatted_message }]
+                }
+            };
+            websocketRef.current.send(JSON.stringify(messageItem));
+
+            // Create response to get AI reply
+            const responseMessage = {
+                type: "response.create",
+                response: { modalities: ["text", "audio"] }
+            };
+            websocketRef.current.send(JSON.stringify(responseMessage));
+
+            console.log('[PageVoiceChat] Formatted message sent, AI response requested');
+            return true;
+
+        } catch (error) {
+            console.error('[PageVoiceChat] Failed to format and send initial message:', error);
+            setError('Failed to process conversation');
+            return false;
+        }
+    }, []);
+
+    // Update the ref whenever the function changes
+    sendFormattedInitialMessageRef.current = sendFormattedInitialMessage;
+
     const handleWebSocketMessage = useCallback((event) => {
         try {
             const data = JSON.parse(event.data);
@@ -233,17 +298,41 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
                     }
                     break;
 
+                case 'conversation.item.input_audio_transcription.completed':
+                    if (data.transcript) {
+                        console.log('[PageVoiceChat] Child transcription completed:', data.transcript);
+
+                        // Add child's message to conversation display
+                        addConversationMessage(data.transcript, true);
+
+                        // Store child's transcription in database
+                        if (currentBookIdRef.current && currentPageNumberRef.current) {
+                            storeConversationMessage(
+                                data.transcript,
+                                'user',
+                                currentBookIdRef.current,
+                                currentPageNumberRef.current
+                            );
+                        }
+
+                        // Format and send initial message to OpenAI
+                        if (sendFormattedInitialMessageRef.current) {
+                            sendFormattedInitialMessageRef.current(data.transcript);
+                        }
+                    }
+                    break;
+
                 case 'response.audio_transcript.done':
                     if (currentTranscriptRef.current) {
                         addConversationMessage(currentTranscriptRef.current, false);
 
                         // Store AI message
-                        if (currentBookId.current && currentPageNumber.current) {
+                        if (currentBookIdRef.current && currentPageNumberRef.current) {
                             storeConversationMessage(
                                 currentTranscriptRef.current,
                                 'ai',
-                                currentBookId.current,
-                                currentPageNumber.current
+                                currentBookIdRef.current,
+                                currentPageNumberRef.current
                             );
                         }
 
@@ -270,7 +359,7 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
         }
     }, [handleAudioDelta, resetStreamingState, addConversationMessage]);
 
-    const connect = useCallback(async (bookId, pageNumber) => {
+    const connect = useCallback(async (bookId, pageNumber, questionId) => {
         if (isConnected || isLoading) {
             console.log('[PageVoiceChat] Already connected or connecting');
             return;
@@ -280,10 +369,15 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
         setError(null);
 
         try {
-            // Fetch page-specific prompt
-            console.log(`[PageVoiceChat] Fetching prompt for book ${bookId}, page ${pageNumber}`);
+            // Store current context in refs for use in callbacks
+            currentBookIdRef.current = bookId;
+            currentPageNumberRef.current = pageNumber;
+            currentQuestionRef.current = { id: questionId };
+
+            // Fetch question-specific prompt
+            console.log(`[PageVoiceChat] Fetching prompt for book ${bookId}, page ${pageNumber}, question ${questionId}`);
             const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-            const promptResponse = await apiRequest(`${API_BASE_URL}/api/books/${bookId}/page/${pageNumber}/prompt`);
+            const promptResponse = await apiRequest(`${API_BASE_URL}/api/books/${bookId}/page/${pageNumber}/question/${questionId}/prompt`);
 
             if (!promptResponse.ok) {
                 throw new Error(`Failed to fetch prompt: ${promptResponse.status}`);
@@ -291,7 +385,8 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
 
             const promptData = await promptResponse.json();
             setCurrentPrompt(promptData);
-            console.log('[PageVoiceChat] Prompt fetched successfully');
+            setCurrentQuestion({ id: questionId });
+            console.log('[PageVoiceChat] Question-specific prompt fetched successfully');
 
             // Create WebSocket connection
             const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
@@ -310,7 +405,7 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
                             type: "session.update",
                             session: {
                                 modalities: ["text", "audio"],
-                                instructions: promptData.prompt,
+                                instructions: promptData,
                                 voice: "shimmer",
                                 input_audio_format: "pcm16",
                                 output_audio_format: "pcm16",
@@ -322,7 +417,7 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
                         };
 
                         websocketRef.current.send(JSON.stringify(sessionUpdateMessage));
-                        console.log('[PageVoiceChat] Session configured with page-specific prompt:', promptData.prompt.substring(0, 100) + '...');
+                        console.log('[PageVoiceChat] Session configured with question-specific prompt:', promptData.substring(0, 100) + '...');
                     }
                 }, 100);
             };
@@ -348,42 +443,35 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
         }
     }, [isConnected, isLoading, handleWebSocketMessage]);
 
-    const disconnect = useCallback(() => {
-        // Disconnect guard - only disconnect if actually connected or loading
-        if (!isConnected && !isLoading) {
-            console.log('[PageVoiceChat] Already disconnected');
-            return;
-        }
 
+
+    const disconnect = useCallback(() => {
         if (websocketRef.current) {
+            console.log('[PageVoiceChat] Disconnecting...');
             websocketRef.current.close();
             websocketRef.current = null;
         }
 
+        // Clear state
         setIsConnected(false);
         setIsLoading(false);
         setError(null);
         setCurrentPrompt(null);
-
-        // Clean up audio context
-        if (audioContextRef.current) {
-            audioContextRef.current.close();
-            audioContextRef.current = null;
-        }
-
-        // Reset audio state
-        responseAudioBufferRef.current = [];
-        resetStreamingState();
-        isPlayingResponseRef.current = false;
-        currentTranscriptRef.current = '';
-
-        // Clear streaming transcript state
+        setCurrentQuestion(null);
+        setConversationMessages([]);
         setIsAiSpeaking(false);
         setCurrentStreamingTranscript('');
         setStreamingResponseId(null);
 
-        console.log('[PageVoiceChat] Disconnected and cleaned up');
-    }, [isConnected, isLoading, resetStreamingState]);
+        // Clear refs
+        currentQuestionRef.current = null;
+        currentBookIdRef.current = null;
+        currentPageNumberRef.current = null;
+        currentTranscriptRef.current = '';
+        responseAudioBufferRef.current = [];
+
+        console.log('[PageVoiceChat] Disconnected and state cleared');
+    }, []);
 
     const sendAudioData = useCallback((pcm16Data) => {
         if (!websocketRef.current) {
@@ -406,7 +494,7 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
             const uint8Array = new Uint8Array(pcm16Data.buffer);
             const base64Audio = uint8ArrayToBase64(uint8Array);
 
-            // Create conversation item with audio content
+            // Create conversation item with audio content for transcription only
             const conversationItemMessage = {
                 type: "conversation.item.create",
                 item: {
@@ -424,16 +512,10 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
             websocketRef.current.send(JSON.stringify(conversationItemMessage));
             userInputTimeRef.current = Date.now();
 
-            // Don't add placeholder - let transcription handle user messages
+            console.log('[PageVoiceChat] Audio sent for transcription');
 
-            // Create response to get AI reply
-            const responseMessage = {
-                type: "response.create",
-                response: {
-                    modalities: ["text", "audio"],
-                }
-            };
-            websocketRef.current.send(JSON.stringify(responseMessage));
+            // Don't create response yet - wait for transcription completion
+            // The response will be created after we format and send the initial message
 
             return true;
         } catch (error) {
@@ -441,7 +523,7 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
             setError('Failed to send audio message');
             return false;
         }
-    }, [uint8ArrayToBase64, addConversationMessage]);
+    }, [uint8ArrayToBase64]);
 
     const clearConversation = useCallback(() => {
         setConversationMessages([]);
@@ -453,24 +535,13 @@ export const usePageVoiceChat = (bookId, pageNumber) => {
         setStreamingResponseId(null);
     }, []);
 
-    // Store book/page context for conversation storage
-    const currentBookId = useRef(bookId);
-    const currentPageNumber = useRef(pageNumber);
-
-    // Update context when parameters change
-    if (bookId !== currentBookId.current) {
-        currentBookId.current = bookId;
-    }
-    if (pageNumber !== currentPageNumber.current) {
-        currentPageNumber.current = pageNumber;
-    }
-
     return {
         isConnected,
         isLoading,
         error,
         conversationMessages,
         currentPrompt,
+        currentQuestion,
         connect,
         disconnect,
         sendAudioData,

@@ -1,9 +1,19 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 import os
 import yaml
 from .books import load_book_data
 
 prompts_router = APIRouter()
+
+class FormatMessageRequest(BaseModel):
+    book_id: str
+    page_number: int
+    question_id: str
+    child_response: str
+
+class FormatMessageResponse(BaseModel):
+    formatted_message: str
 
 def get_prompt_templates():
     """Load prompt templates from YAML file"""
@@ -19,6 +29,68 @@ def get_prompt_templates():
     except yaml.YAMLError as e:
         raise HTTPException(status_code=500, detail=f"Invalid YAML in prompts file: {str(e)}")
 
+def find_page(book_data, page_number):
+    """Find a specific page in book data"""
+    for page in book_data.get("pages", []):
+        if page.get("pageNumber") == page_number:
+            return page
+    return None
+
+def find_question(page, question_id):
+    """Find a specific question in page data"""
+    if not page:
+        return None
+    
+    for question in page.get("questions", []):
+        if question.get("id") == question_id:
+            return question
+    return None
+
+@prompts_router.post("/prompts/format-initial-message", response_model=FormatMessageResponse)
+async def format_initial_message(request: FormatMessageRequest):
+    """Format the initial message to send to OpenAI with story context"""
+    try:
+        # Load book data
+        book_data = load_book_data(request.book_id)
+        
+        # Find the specific page
+        page = find_page(book_data, request.page_number)
+        if not page:
+            raise HTTPException(status_code=404, detail=f"Page {request.page_number} not found in book {request.book_id}")
+        
+        # Find the specific question
+        question = find_question(page, request.question_id)
+        if not question:
+            raise HTTPException(status_code=404, detail=f"Question '{request.question_id}' not found on page {request.page_number}")
+        
+        # Extract content for message formatting
+        story_text = page.get("storyText", "")
+        question_text = question.get("questionText", "")
+        answer_text = question.get("answerText", "")
+        follow_up = question.get("follow-up", [])
+        
+        # Build formatted message
+        message_parts = [f"Story: {story_text}"]
+        message_parts.append(f"Question: {question_text}")
+        
+        if answer_text:
+            message_parts.append(f"Answer: {answer_text}")
+        
+        if follow_up:
+            follow_up_text = "\n".join(f"- {q}" for q in follow_up)
+            message_parts.append(f"Example follow-up questions:\n{follow_up_text}")
+        
+        message_parts.append(f"Child response: {request.child_response}")
+        
+        formatted_message = "\n\n".join(message_parts)
+        
+        return FormatMessageResponse(formatted_message=formatted_message)
+        
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Error formatting initial message: {str(e)}")
+
 @prompts_router.get("/books/{book_id}/page/{page_number}/question/{question_id}/prompt")
 async def get_question_prompt(book_id: str, page_number: int, question_id: str):
     """Generate context-aware prompt for a specific question"""
@@ -27,12 +99,7 @@ async def get_question_prompt(book_id: str, page_number: int, question_id: str):
         book_data = load_book_data(book_id)
         
         # Find the specific page
-        page = None
-        for p in book_data.get("pages", []):
-            if p.get("pageNumber") == page_number:
-                page = p
-                break
-        
+        page = find_page(book_data, page_number)
         if not page:
             raise HTTPException(status_code=404, detail=f"Page {page_number} not found in book {book_id}")
         
@@ -41,13 +108,8 @@ async def get_question_prompt(book_id: str, page_number: int, question_id: str):
         if not questions:
             raise HTTPException(status_code=400, detail=f"Page {page_number} does not have any questions")
         
-        # Find the specific question by ID
-        question = None
-        for q in questions:
-            if q.get("id") == question_id:
-                question = q
-                break
-        
+        # Find the specific question
+        question = find_question(page, question_id)
         if not question:
             raise HTTPException(status_code=404, detail=f"Question '{question_id}' not found on page {page_number}")
         
@@ -68,120 +130,9 @@ async def get_question_prompt(book_id: str, page_number: int, question_id: str):
         
         template = templates[question_type]
         
-        return {
-            "prompt": template,
-            "question_type": question_type,
-            "question_id": question_id,
-            "page_number": page_number,
-            "book_id": book_id,
-            "question_data": {
-                "questionText": question.get("questionText", ""),
-                "answerText": question.get("answerText", ""),
-                "follow_up": question.get("follow-up", [])
-            },
-            "story_text": page.get("storyText", "")
-        }
+        return template
         
     except Exception as e:
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=f"Error generating question prompt: {str(e)}")
-
-@prompts_router.get("/books/{book_id}/page/{page_number}/prompt")
-async def get_page_prompt(book_id: str, page_number: int):
-    """Generate context-aware prompt for a specific page (DEPRECATED - kept for backward compatibility)"""
-    try:
-        # Load book data
-        book_data = load_book_data(book_id)
-        
-        # Find the specific page
-        page = None
-        for p in book_data.get("pages", []):
-            if p.get("pageNumber") == page_number:
-                page = p
-                break
-        
-        if not page:
-            raise HTTPException(status_code=404, detail=f"Page {page_number} not found in book {book_id}")
-        
-        # Check if page has questions (new format)
-        questions = page.get("questions", [])
-        if questions:
-            # Use the first question for backward compatibility
-            first_question = questions[0]
-            return await get_question_prompt(book_id, page_number, first_question.get("id"))
-        
-        # Check if page has a question (old format - for backward compatibility)
-        if not page.get("question"):
-            raise HTTPException(status_code=400, detail=f"Page {page_number} does not have a question")
-        
-        prompt_template_id = page.get("promptTemplate")
-        if not prompt_template_id:
-            raise HTTPException(status_code=400, detail=f"Page {page_number} does not specify a prompt template")
-        
-        # Load old prompt templates (this path should be deprecated)
-        current_file = os.path.abspath(__file__)
-        backend_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
-        old_templates_file = os.path.join(backend_root, "data", "prompt-templates.yaml")
-        
-        try:
-            with open(old_templates_file, 'r', encoding='utf-8') as f:
-                old_templates = yaml.safe_load(f)
-        except FileNotFoundError:
-            raise HTTPException(status_code=500, detail="Old prompt templates file not found")
-        
-        if prompt_template_id not in old_templates:
-            raise HTTPException(status_code=404, detail=f"Prompt template '{prompt_template_id}' not found")
-        
-        template = old_templates[prompt_template_id]
-        
-        # Extract content for template placeholders
-        story_text = page.get("storyText", "")
-        question_data = page.get("question", {})
-        question_text = question_data.get("questionText", "")
-        follow_up = question_data.get("follow-up", [])
-        
-        # Handle follow-up questions formatting
-        follow_up_text = ""
-        if follow_up:
-            follow_up_text = "\n           ".join(f"- {q}" for q in follow_up)
-        
-        # Handle different template types
-        if prompt_template_id == "template1":
-            # Template 1 doesn't need answerText
-            filled_prompt = template.format(
-                storyText=story_text,
-                questionText=question_text,
-                **{"follow-up": follow_up_text}
-            )
-        elif prompt_template_id == "template2":
-            # Template 2 requires answerText
-            answer_text = question_data.get("answerText", "")
-            if not answer_text:
-                raise HTTPException(status_code=400, detail=f"Page {page_number} using template2 requires an 'answerText' field")
-            
-            filled_prompt = template.format(
-                storyText=story_text,
-                questionText=question_text,
-                answerText=answer_text,
-                **{"follow-up": follow_up_text}
-            )
-        else:
-            # For any other template types, try to format with available fields
-            filled_prompt = template.format(
-                storyText=story_text,
-                questionText=question_text,
-                **{"follow-up": follow_up_text}
-            )
-        
-        return {
-            "prompt": filled_prompt,
-            "template_id": prompt_template_id,
-            "page_number": page_number,
-            "book_id": book_id
-        }
-        
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=f"Error generating prompt: {str(e)}") 

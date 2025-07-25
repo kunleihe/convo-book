@@ -7,12 +7,11 @@ import userAvatarImage from '../../../assets/user-avatar.png';
 import { fetchAudioWithRetry, getCachedAudio, cacheAudio } from '../../../utils/audioCache';
 import './InteractivePanel.css';
 
-const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pageNumber }) => {
+const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, questionIndex, totalQuestions }) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-    const [lastAudioTimestamp, setLastAudioTimestamp] = useState(null);
 
     // Voice chat hooks
-    const pageVoiceChat = usePageVoiceChat(bookId, pageNumber);
+    const pageVoiceChat = usePageVoiceChat();
     const transcriptionWS = useTranscriptionWebSocket(bookId, pageNumber);
 
     // Connect when panel opens with a question
@@ -22,12 +21,15 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
         if (question && bookId && pageNumber && mounted) {
             console.log('[InteractivePanel] Connecting voice chat for page:', pageNumber);
 
-            // Clear previous transcriptions and timestamp
+            // Clear previous transcriptions
             transcriptionWS.clearTranscriptions();
-            setLastAudioTimestamp(null);
 
             // Connect both services
-            pageVoiceChat.connect(bookId, pageNumber);
+            if (question && question.id) {
+                pageVoiceChat.connect(bookId, pageNumber, question.id);
+            } else {
+                console.warn('[InteractivePanel] Question missing ID, cannot connect voice chat');
+            }
             transcriptionWS.connect();
         }
 
@@ -41,7 +43,7 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
                 transcriptionWS.disconnect();
             }, 100);
         };
-    }, [question?.questionText, bookId, pageNumber]); // More specific dependency
+    }, [question?.id, question?.questionText, bookId, pageNumber]); // Include question ID for reconnection
 
     useEffect(() => {
         if (question && question.audioUrl) {
@@ -186,7 +188,12 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
     return (
         <div className="interactive-panel">
             <div className="panel-header">
-                <h5 className="mb-0">Chat</h5>
+                <div className="d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0">Chat</h5>
+                    {totalQuestions > 1 && questionIndex !== undefined && (
+                        <small className="text-muted">Question {questionIndex + 1} of {totalQuestions}</small>
+                    )}
+                </div>
                 {pageVoiceChat.isLoading && <small className="text-muted">Connecting...</small>}
                 {pageVoiceChat.error && <small className="text-danger">Error: {pageVoiceChat.error}</small>}
             </div>
@@ -217,7 +224,6 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
                     <VoiceButton
                         disabled={!canUseVoiceButton()}
                         onAudioRecorded={(pcm16Data) => {
-                            setLastAudioTimestamp(new Date());
                             pageVoiceChat.sendAudioData(pcm16Data);
                         }}
                         onAudioChunk={(pcm16Data) => {

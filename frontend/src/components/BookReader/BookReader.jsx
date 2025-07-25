@@ -18,7 +18,9 @@ const BookReader = () => {
 
     // Chat panel state
     const [showChatPanel, setShowChatPanel] = useState(false);
-    const [currentQuestion, setCurrentQuestion] = useState(null);
+    const [currentQuestions, setCurrentQuestions] = useState([]);
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [activeQuestion, setActiveQuestion] = useState(null);
     const [chatMessages, setChatMessages] = useState([]);
     const [isQuestionAudioPlaying, setIsQuestionAudioPlaying] = useState(false);
 
@@ -92,6 +94,9 @@ const BookReader = () => {
 
             // Close chat panel when manually navigating to page
             setShowChatPanel(false);
+            setCurrentQuestions([]);
+            setCurrentQuestionIndex(0);
+            setActiveQuestion(null);
         } else {
             setError(`Page ${pageNum} not found`);
         }
@@ -112,18 +117,31 @@ const BookReader = () => {
 
     const handleNextPage = () => {
         const currentPageNum = parseInt(pageNumber, 10);
+        const pageQuestions = currentPage?.questions || [];
 
-        // Case 1: No panels open, page has question → open chat panel
-        if (!showChatPanel && currentPage?.question) {
-            setCurrentQuestion(currentPage.question);
+        // Case 1: No panels open, page has questions → open panel with first question
+        if (!showChatPanel && pageQuestions.length > 0) {
+            setCurrentQuestions(pageQuestions);
+            setCurrentQuestionIndex(0);
+            setActiveQuestion(pageQuestions[0]);
             setShowChatPanel(true);
             setChatMessages([]);
             return;
         }
 
-        // Case 2: Chat panel open → go to next page
-        if (showChatPanel) {
+        // Case 2: Panel open, more questions remain → go to next question
+        if (showChatPanel && currentQuestionIndex < currentQuestions.length - 1) {
+            const nextIndex = currentQuestionIndex + 1;
+            setCurrentQuestionIndex(nextIndex);
+            setActiveQuestion(currentQuestions[nextIndex]);
+            setChatMessages([]); // Clear chat for new question
+            return;
+        }
+
+        // Case 3: Panel open, no more questions OR no questions → go to next page
+        if (showChatPanel || pageQuestions.length === 0) {
             setShowChatPanel(false);
+            setCurrentQuestionIndex(0);
             if (currentPageNum < bookData.totalPages) {
                 navigateToPage(currentPageNum + 1);
             } else {
@@ -133,7 +151,7 @@ const BookReader = () => {
             return;
         }
 
-        // Case 3: Default → go to next page
+        // Case 4: Default fallback → go to next page
         if (currentPageNum < bookData.totalPages) {
             navigateToPage(currentPageNum + 1);
         } else {
@@ -154,12 +172,35 @@ const BookReader = () => {
 
 
     const getButtonColorClass = () => {
+        const pageQuestions = currentPage?.questions || [];
+
         if (showChatPanel) {
-            return ''; // Blue for Next Page / Finish Book
-        } else if (currentPage?.question) {
-            return 'question-btn'; // Green for Discuss Page
+            // More questions remaining
+            if (currentQuestionIndex < currentQuestions.length - 1) {
+                return 'question-btn'; // Green for "Next Question"
+            }
+            // Last question or no more questions
+            return ''; // Blue for "Next Page"
+        } else if (pageQuestions.length > 0) {
+            return 'question-btn'; // Green for "Discuss Page" 
         } else {
-            return ''; // Default blue for Next Page
+            return ''; // Blue for "Next Page"
+        }
+    };
+
+    const getButtonText = () => {
+        const currentPageNum = parseInt(pageNumber, 10);
+        const pageQuestions = currentPage?.questions || [];
+
+        if (showChatPanel) {
+            if (currentQuestionIndex < currentQuestions.length - 1) {
+                return "Next Question →";
+            }
+            return currentPageNum >= bookData.totalPages ? "Finish Book" : "Next Page →";
+        } else if (pageQuestions.length > 0) {
+            return pageQuestions.length === 1 ? "Discuss Page" : "Start Questions";
+        } else {
+            return currentPageNum >= bookData.totalPages ? "Finish Book" : "Next Page →";
         }
     };
 
@@ -242,7 +283,7 @@ const BookReader = () => {
                                 disabled={!canPerformAction()}
                                 onClick={handleNextPage}
                             >
-                                →
+                                {getButtonText()}
                             </Button>
                         </div>
                     </div>
@@ -263,11 +304,13 @@ const BookReader = () => {
             {showChatPanel && (
                 <InteractivePanel
                     mode={'chat'}
-                    question={currentQuestion}
+                    question={activeQuestion}
                     messages={chatMessages}
                     onAudioPlayingChange={setIsQuestionAudioPlaying}
                     bookId={bookId}
                     pageNumber={parseInt(pageNumber, 10)}
+                    questionIndex={currentQuestionIndex}
+                    totalQuestions={currentQuestions.length}
                 />
             )}
         </div>
