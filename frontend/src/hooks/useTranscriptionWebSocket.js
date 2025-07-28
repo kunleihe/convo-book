@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback } from 'react';
-import { storeConversationMessage } from '../utils/conversationStorage';
 
 export const useTranscriptionWebSocket = (bookId, pageNumber) => {
     const [isConnected, setIsConnected] = useState(false);
@@ -62,15 +61,8 @@ export const useTranscriptionWebSocket = (bookId, pageNumber) => {
                     addTranscription(`[TRANSCRIPTION] ${message.transcript}`, new Date());
                     addDebugMessage(`Transcription completed: "${message.transcript}"`);
 
-                    // Store user message
-                    if (currentBookId.current && currentPageNumber.current) {
-                        storeConversationMessage(
-                            message.transcript,
-                            'user',
-                            currentBookId.current,
-                            currentPageNumber.current
-                        );
-                    }
+                    // Note: Conversation storage is handled by usePageVoiceChat with question context
+                    // This hook is only for real-time transcription display
 
                     console.log('[Transcription] Completed:', message);
                 } else {

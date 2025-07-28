@@ -311,7 +311,8 @@ export const usePageVoiceChat = () => {
                                 data.transcript,
                                 'user',
                                 currentBookIdRef.current,
-                                currentPageNumberRef.current
+                                currentPageNumberRef.current,
+                                currentQuestionRef.current?.id
                             );
                         }
 
@@ -332,7 +333,8 @@ export const usePageVoiceChat = () => {
                                 currentTranscriptRef.current,
                                 'ai',
                                 currentBookIdRef.current,
-                                currentPageNumberRef.current
+                                currentPageNumberRef.current,
+                                currentQuestionRef.current?.id
                             );
                         }
 

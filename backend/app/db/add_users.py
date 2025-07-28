@@ -1,36 +1,40 @@
+import csv
+import os
 from ..db.database import SessionLocal
 from ..db.models import User
+from ..config import ENVIRONMENT
 
-users_to_add = [
-    ("user1", "1234"),
-    ("user2", "1234"),
-    ("user3", "1234"),
-    ("user4", "1234"),
-    ("user5", "1234"),
-    ("user6", "1234"),
-    ("user7", "1234"),
-    ("user8", "1234"),
-    ("user9", "1234"),
-    ("user10", "1234"),
-]
+def get_users():
+    if ENVIRONMENT == "development":
+        from .users.development_users import USERS
+        return USERS
+    elif ENVIRONMENT == "staging":
+        from .users.staging_users import USERS
+        return USERS
+    elif ENVIRONMENT == "production":
+        csv_path = os.path.join(os.path.dirname(__file__), "users", "production_users.csv")
+        users = []
+        with open(csv_path, 'r') as file:
+            reader = csv.DictReader(file)
+            for row in reader:
+                users.append((row['username'], row['password']))
+        return users
 
 def add_users():
+    users = get_users()
     db = SessionLocal()
-    for username, password in users_to_add:
-        # check if user already exists
-        existing_user = db.query(User).filter(User.username == username).first()
-        if existing_user:
-            print(f"User {username} already exists")
-            continue
-        user = User(username=username, password=password)
-        db.add(user)
+    
+    for username, password in users:
+        existing = db.query(User).filter(User.username == username).first()
+        if not existing:
+            user = User(username=username, password=password)
+            db.add(user)
+            print(f"Added: {username}")
+        else:
+            print(f"Skipped: {username} (exists)")
+    
     db.commit()
     db.close()
 
 if __name__ == "__main__":
     add_users()
-
-
-# run this in the terminal in /backend to add users 
-# export ENVIRONMENT=staging
-# python -c "from app.db.add_users import add_users; add_users()"
