@@ -10,7 +10,9 @@ storyText: |
 questions:
   - id: "q1"
     questionType: definitive-answer
-    questionText: What moves through the air slower, boxy things or pointy things? Why?
+    questionText: |
+      Let's think about this together.
+      What moves through the air slower, boxy things or pointy things? Why?
     audioUrl: /sample_book/audios/questions/page24_q1.wav
     answerText: Boxy things. They move through air slower because the air pushes them back. 
     follow-up:
@@ -18,7 +20,7 @@ questions:
     - Does the air push the boxy things back or forward?
   - id: "q2"
     questionType: definitive-answer
-    questionText: Let’s imagine building a rocket. Would you make it boxy or pointy? Why?
+    questionText: Another question! Let’s imagine building a rocket. Would you make it boxy or pointy? Why?
     audioUrl: /sample_book/audios/questions/page24_q2.wav
     answerText: Pointy. Because the air goes around the rocket and pushes it up.
     follow-up:

@@ -20,8 +20,8 @@ questions:
 
   - id: "q2"
     questionType: open-ended
-    questionText: What are other things in your life that have a streamlined shape?
+    questionText: | 
+      Another question before we turn the page! 
+      What are other things in your life that have a streamlined shape?
     audioUrl: /sample_book/audios/questions/page23_q2.wav
     answerText: As long as the child mentions one streamlined thing not covered in the story, such as airplanes, dolphins, boats or ships.
-
-promptTemplate: template2  

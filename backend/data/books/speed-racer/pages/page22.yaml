@@ -11,7 +11,9 @@ storyText: |
 questions:
   - id: "q1"
     questionType: definitive-answer
-    questionText: Camilla's car looks like a bird or a fish. What is the same about their shapes?
+    questionText: |
+      Let’s stop here for a sec and chat about something together. 
+      Camilla's car looks like a bird or a fish. What is the same about their shapes?
     audioUrl: /sample_book/audios/questions/page22_q1.wav
     answerText: They are both pointy in the front and round in the middle.
     follow-up:

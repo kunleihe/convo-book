@@ -283,7 +283,7 @@ const BookReader = () => {
                                 disabled={!canPerformAction()}
                                 onClick={handleNextPage}
                             >
-                                {getButtonText()}
+                                →
                             </Button>
                         </div>
                     </div>
