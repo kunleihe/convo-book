@@ -23,9 +23,9 @@ def init_database():
         Base.metadata.create_all(bind=engine)
         print("✅ Database tables created successfully")
         
-        # Add default users
-        add_users()
-        print("✅ Default users added successfully")
+        # Add default users - commented out. Now create users in pgAdmin
+        # add_users()
+        # print("✅ Default users added successfully")
         
         print(f"🎉 Database initialized for {ENVIRONMENT} environment!")
         
