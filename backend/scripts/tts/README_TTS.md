@@ -21,9 +21,58 @@ This script generates audio files for questions found in the book pages using Op
 
 ## Usage
 
+### Batch Generation (All Questions)
+
+Generate audio for all questions in the book:
+
 ```bash
 cd backend/scripts/tts
 ./generate_question_audio.sh
+```
+
+Or run the Python script directly:
+
+```bash
+cd backend/scripts/tts
+python generate_question_audio.py
+```
+
+### Single Question Generation
+
+Generate audio for a specific question by page number and question ID:
+
+```bash
+cd backend/scripts/tts
+python generate_question_audio.py --page 12 --question-id q1
+```
+
+**Arguments:**
+- `--page`: Page number (e.g., "1", "12", "23")
+- `--question-id`: Question ID (e.g., "q1", "q2")
+
+**Examples:**
+```bash
+# Generate audio for page 1, question q1
+python generate_question_audio.py --page 1 --question-id q1
+
+# Generate audio for page 12, question q2
+python generate_question_audio.py --page 12 --question-id q2
+
+# Generate audio for page 23, question q1
+python generate_question_audio.py --page 23 --question-id q1
+```
+
+### Advanced Options
+
+You can also specify custom paths and API key:
+
+```bash
+python generate_question_audio.py \
+  --book-dir "../../data/books/speed-racer" \
+  --output-dir "../../../frontend/public/sample_book/audios/questions" \
+  --openai-key "your-api-key-here" \
+  --page 12 \
+  --question-id q1
 ```
 
 ## What the script does
@@ -49,12 +98,25 @@ questions:
 
 The script will generate `page2_q1.mp3` in the output directory.
 
+## Error Handling
+
+When generating a single question, if the question ID is not found, the script will show all available questions on that page:
+
+```
+Error: Question q3 not found on page 12
+Available questions on this page:
+  - q1: Parent and kid, let's take a moment to chat together! Did you ever ride in a car going really fast? How did it feel?
+  - q2: What do you think makes a car go fast?
+```
+
 ## Troubleshooting
 
 - **API Key Error**: Make sure your OpenAI API key is set correctly
 - **Permission Error**: Ensure the output directory is writable
 - **Empty Audio Files**: Check that the question text is not empty in the YAML files
 - **Network Issues**: Ensure you have a stable internet connection for API calls
+- **Page Not Found**: Verify the page number exists in the book directory
+- **Question Not Found**: Check the question ID and use the error message to see available questions
 
 ## Cost Considerations
 

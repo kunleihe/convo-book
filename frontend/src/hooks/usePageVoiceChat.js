@@ -220,7 +220,7 @@ export const usePageVoiceChat = () => {
                 item: {
                     type: "message",
                     role: "user",
-                    content: [{ type: "text", text: formatted_message }]
+                    content: [{ type: "input_text", text: formatted_message }]
                 }
             };
             websocketRef.current.send(JSON.stringify(messageItem));
@@ -552,5 +552,8 @@ export const usePageVoiceChat = () => {
         currentStreamingTranscript,
         isAiSpeaking,
         streamingResponseId,
+        // Expose WebSocket ref and message handler for external use
+        websocketRef,
+        handleWebSocketMessage,
     };
 }; 

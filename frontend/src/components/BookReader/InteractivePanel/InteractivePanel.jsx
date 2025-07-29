@@ -12,7 +12,24 @@ const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, 
 
     // Voice chat hooks
     const pageVoiceChat = usePageVoiceChat();
-    const transcriptionWS = useTranscriptionWebSocket(bookId, pageNumber);
+
+    // Create callback function to forward transcription completion to main voice chat
+    const handleTranscriptionComplete = (transcriptionMessage) => {
+        console.log('[InteractivePanel] Forwarding transcription completion to main voice chat');
+        // Simulate the transcription completion event for the main voice chat WebSocket
+        if (pageVoiceChat.websocketRef && pageVoiceChat.websocketRef.current) {
+            // Create a synthetic event that the main WebSocket can handle
+            const syntheticEvent = {
+                data: JSON.stringify(transcriptionMessage)
+            };
+            // Call the main WebSocket's message handler directly
+            if (pageVoiceChat.handleWebSocketMessage) {
+                pageVoiceChat.handleWebSocketMessage(syntheticEvent);
+            }
+        }
+    };
+
+    const transcriptionWS = useTranscriptionWebSocket(bookId, pageNumber, handleTranscriptionComplete);
 
     // Connect when panel opens with a question
     useEffect(() => {

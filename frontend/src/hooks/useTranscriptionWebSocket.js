@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 
-export const useTranscriptionWebSocket = (bookId, pageNumber) => {
+export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionComplete = null) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [transcriptions, setTranscriptions] = useState([]);
@@ -61,8 +61,11 @@ export const useTranscriptionWebSocket = (bookId, pageNumber) => {
                     addTranscription(`[TRANSCRIPTION] ${message.transcript}`, new Date());
                     addDebugMessage(`Transcription completed: "${message.transcript}"`);
 
-                    // Note: Conversation storage is handled by usePageVoiceChat with question context
-                    // This hook is only for real-time transcription display
+                    // Forward the transcription completion to the main voice chat WebSocket
+                    if (onTranscriptionComplete && typeof onTranscriptionComplete === 'function') {
+                        console.log('[Transcription] Forwarding transcription completion to main WebSocket');
+                        onTranscriptionComplete(message);
+                    }
 
                     console.log('[Transcription] Completed:', message);
                 } else {
@@ -93,7 +96,7 @@ export const useTranscriptionWebSocket = (bookId, pageNumber) => {
                 console.log('[Transcription] Unknown message type:', message);
                 break;
         }
-    }, [addDebugMessage, addTranscription]);
+    }, [addDebugMessage, addTranscription, onTranscriptionComplete]);
 
     // Configure transcription session after connection
     const configureTranscriptionSession = useCallback((ws) => {

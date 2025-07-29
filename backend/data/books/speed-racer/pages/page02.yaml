@@ -15,6 +15,6 @@ questions:
     questionText: | 
       Parent and kid, let’s take a moment to chat together! 
       Did you ever ride in a car going really fast? How did it feel?
-    audioUrl: /sample_book/audios/questions/page2_q1.wav
+    audioUrl: /sample_book/audios/questions/page2_q1.mp3
     follow-up:
     - Imagine you're in a fast car. Will it make you feel excited or a little scared?

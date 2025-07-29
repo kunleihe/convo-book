@@ -11,7 +11,7 @@ questions:
     questionText: |
       Now Elinor's car and Camilla's car are both streamlined.
       Let's make a prediction! Do you predict that Elinor's car will go as fast as Camilla's car? Why or why not?
-    audioUrl: /sample_book/audios/questions/page26_q1.wav
+    audioUrl: /sample_book/audios/questions/page26_q1.mp3
     answerText: Yes. Because now Elinor's car is streamlined, just like Camilla's, so it can move through the air more easily.
     follow-up:
     - Do streamlined things or boxy things move through air more easily?
