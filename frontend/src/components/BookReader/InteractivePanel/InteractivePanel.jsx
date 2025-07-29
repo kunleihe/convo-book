@@ -60,7 +60,23 @@ const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, 
                 transcriptionWS.disconnect();
             }, 100);
         };
-    }, [question?.id, question?.questionText, bookId, pageNumber]); // Include question ID for reconnection
+    }, [bookId, pageNumber]); // Keep connection stable for all questions on the same page
+
+    // Handle question-specific updates when switching questions
+    useEffect(() => {
+        if (question && question.id && pageVoiceChat.isConnected && bookId && pageNumber) {
+            console.log('[InteractivePanel] Updating for new question:', question.id);
+
+            // Clear conversation messages for new question
+            pageVoiceChat.clearConversation();
+
+            // Clear transcriptions for new question
+            transcriptionWS.clearTranscriptions();
+
+            // Update the AI prompt for the new question
+            updateQuestionPrompt(bookId, pageNumber, question.id);
+        }
+    }, [question?.id]); // Only trigger when question ID changes
 
     useEffect(() => {
         if (question && question.audioUrl) {
@@ -86,6 +102,45 @@ const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, 
     const canUseVoiceButton = () => {
         // Disable voice button if audio is playing or not connected
         return !isAudioPlaying && pageVoiceChat.isConnected;
+    };
+
+    // Update AI prompt for new question without reconnecting
+    const updateQuestionPrompt = async (bookId, pageNumber, questionId) => {
+        try {
+            console.log(`[InteractivePanel] Fetching new prompt for question ${questionId}`);
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+            const promptResponse = await fetch(`${API_BASE_URL}/api/books/${bookId}/page/${pageNumber}/question/${questionId}/prompt`);
+
+            if (!promptResponse.ok) {
+                throw new Error(`Failed to fetch prompt: ${promptResponse.status}`);
+            }
+
+            const promptData = await promptResponse.json();
+            console.log('[InteractivePanel] New prompt fetched successfully');
+
+            // Update the WebSocket session with new prompt
+            if (pageVoiceChat.websocketRef && pageVoiceChat.websocketRef.current) {
+                const sessionUpdateMessage = {
+                    type: "session.update",
+                    session: {
+                        modalities: ["text", "audio"],
+                        instructions: promptData,
+                        voice: "shimmer",
+                        input_audio_format: "pcm16",
+                        output_audio_format: "pcm16",
+                        input_audio_transcription: {
+                            model: "whisper-1"
+                        },
+                        turn_detection: null
+                    }
+                };
+
+                pageVoiceChat.websocketRef.current.send(JSON.stringify(sessionUpdateMessage));
+                console.log('[InteractivePanel] Session updated with new question prompt');
+            }
+        } catch (error) {
+            console.error('[InteractivePanel] Failed to update question prompt:', error);
+        }
     };
 
     const playQuestionAudioAsync = async (audioUrl) => {
