@@ -15,13 +15,20 @@ const VoiceButton = ({
         stopRecording,
     } = useAudioRecorder(
         // onAudioRecorded callback - send to voice chat
-        (pcm16Data) => {
-            console.log('[VoiceButton] Audio recorded:', pcm16Data.length, 'samples');
-            if (onAudioRecorded) {
-                onAudioRecorded(pcm16Data);
-            }
-            if (onRecordingComplete) {
-                onRecordingComplete();
+        (pcm16Data, options = {}) => {
+            if (options.isSilent) {
+                console.log('[VoiceButton] Silent recording detected');
+                if (onRecordingComplete) {
+                    onRecordingComplete({ isSilent: true });
+                }
+            } else {
+                console.log('[VoiceButton] Audio recorded:', pcm16Data.length, 'samples');
+                if (onAudioRecorded) {
+                    onAudioRecorded(pcm16Data);
+                }
+                if (onRecordingComplete) {
+                    onRecordingComplete({ isSilent: false });
+                }
             }
         },
         // onAudioChunk callback - send to transcription

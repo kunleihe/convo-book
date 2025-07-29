@@ -37,12 +37,18 @@ export const usePageVoiceChat = () => {
     const sendFormattedInitialMessageRef = useRef(null);
 
     const addConversationMessage = useCallback((message, isUser = false) => {
-        setConversationMessages(prev => [...prev, {
+        const newMessage = {
             id: Date.now(),
             content: message,
             isUser,
             timestamp: new Date()
-        }]);
+        };
+
+        setConversationMessages(prev => {
+            const updated = [...prev, newMessage];
+            console.log(`[PageVoiceChat] Conversation updated. Total messages: ${updated.length}, New message: ${isUser ? 'User' : 'AI'}: "${message.substring(0, 50)}${message.length > 50 ? '...' : ''}"`);
+            return updated;
+        });
     }, []);
 
     // Initialize Web Audio API context
@@ -326,9 +332,34 @@ export const usePageVoiceChat = () => {
                             );
                         }
 
-                        // Format and send initial message to OpenAI
-                        if (sendFormattedInitialMessageRef.current) {
-                            sendFormattedInitialMessageRef.current(data.transcript);
+                        // Check if this is the first message or a follow-up
+                        if (conversationMessages.length === 0) {
+                            // This is the first message - format with story context
+                            if (sendFormattedInitialMessageRef.current) {
+                                sendFormattedInitialMessageRef.current(data.transcript);
+                            }
+                        } else {
+                            // This is a follow-up message - send raw transcription and let session handle history
+                            console.log('[PageVoiceChat] Sending follow-up message:', data.transcript);
+
+                            const messageItem = {
+                                type: "conversation.item.create",
+                                item: {
+                                    type: "message",
+                                    role: "user",
+                                    content: [{ type: "input_text", text: data.transcript }]
+                                }
+                            };
+                            websocketRef.current.send(JSON.stringify(messageItem));
+
+                            // Create response to get AI reply
+                            const responseMessage = {
+                                type: "response.create",
+                                response: { modalities: ["text", "audio"] }
+                            };
+                            websocketRef.current.send(JSON.stringify(responseMessage));
+
+                            console.log('[PageVoiceChat] Follow-up message sent, AI response requested');
                         }
                     }
                     break;
@@ -579,6 +610,65 @@ export const usePageVoiceChat = () => {
         }
     }, []);
 
+    // Send silence message to AI
+    const sendSilenceMessage = useCallback(() => {
+        if (!websocketRef.current) {
+            console.error('[PageVoiceChat] WebSocket not initialized');
+            return false;
+        }
+
+        if (websocketRef.current.readyState !== WebSocket.OPEN) {
+            console.error('[PageVoiceChat] WebSocket not ready');
+            return false;
+        }
+
+        try {
+            // Add a message bubble for silence to show user interaction
+            addConversationMessage('<No speech detected...>', true);
+
+            // Check if this is the first message or a follow-up
+            if (conversationMessages.length === 0) {
+                // This is the first message - use formatted approach
+                if (sendFormattedInitialMessageRef.current) {
+                    sendFormattedInitialMessageRef.current("[silence]");
+                    console.log('[PageVoiceChat] Initial silence message sent with story context');
+                } else {
+                    console.error('[PageVoiceChat] sendFormattedInitialMessage not available');
+                    setError('Failed to send silence message - missing context');
+                    return false;
+                }
+            } else {
+                // This is a follow-up message - send raw text and let session handle history
+                console.log('[PageVoiceChat] Sending follow-up silence message');
+
+                const messageItem = {
+                    type: "conversation.item.create",
+                    item: {
+                        type: "message",
+                        role: "user",
+                        content: [{ type: "input_text", text: "[silence]" }]
+                    }
+                };
+                websocketRef.current.send(JSON.stringify(messageItem));
+
+                // Create response to get AI reply
+                const responseMessage = {
+                    type: "response.create",
+                    response: { modalities: ["text", "audio"] }
+                };
+                websocketRef.current.send(JSON.stringify(responseMessage));
+
+                console.log('[PageVoiceChat] Follow-up silence message sent, AI response requested');
+            }
+
+            return true;
+        } catch (error) {
+            console.error('[PageVoiceChat] Error sending silence message:', error);
+            setError('Failed to send silence message');
+            return false;
+        }
+    }, [conversationMessages.length, addConversationMessage]);
+
     return {
         isConnected,
         isLoading,
@@ -589,6 +679,8 @@ export const usePageVoiceChat = () => {
         connect,
         disconnect,
         sendAudioData,
+        sendSilenceMessage,
+        addConversationMessage,
         clearConversation,
         updateQuestionContext,
         // Streaming transcript states
