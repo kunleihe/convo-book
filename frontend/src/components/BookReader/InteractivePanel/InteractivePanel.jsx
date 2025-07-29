@@ -73,6 +73,9 @@ const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, 
             // Clear transcriptions for new question
             transcriptionWS.clearTranscriptions();
 
+            // Update the question context in the voice chat hook
+            pageVoiceChat.updateQuestionContext(question.id);
+
             // Update the AI prompt for the new question
             updateQuestionPrompt(bookId, pageNumber, question.id);
         }

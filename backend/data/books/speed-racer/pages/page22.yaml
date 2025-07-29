@@ -17,7 +17,5 @@ questions:
     audioUrl: /sample_book/audios/questions/page22_q1.mp3
     answerText: They are both pointy in the front and round in the middle.
     follow-up:
-    - What do they look like in the front?
-    - What do they look like in the middle?
-
-promptTemplate: template2  
+    - What do they look like in the front, pointy or boxy?
+    - They are pointy in the front. What do they look like in the middle?

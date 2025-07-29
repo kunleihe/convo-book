@@ -195,6 +195,11 @@ export const usePageVoiceChat = () => {
 
         try {
             console.log('[PageVoiceChat] Formatting initial message with child response:', childResponse);
+            console.log('[PageVoiceChat] Current context for formatting:', {
+                bookId: currentBookIdRef.current,
+                pageNumber: currentPageNumberRef.current,
+                questionId: currentQuestionRef.current?.id
+            });
 
             const API_BASE_URL = import.meta.env.VITE_API_URL || '';
             const response = await apiRequest(`${API_BASE_URL}/api/prompts/format-initial-message`, {
@@ -307,6 +312,11 @@ export const usePageVoiceChat = () => {
 
                         // Store child's transcription in database
                         if (currentBookIdRef.current && currentPageNumberRef.current) {
+                            console.log('[PageVoiceChat] Storing user message with context:', {
+                                bookId: currentBookIdRef.current,
+                                pageNumber: currentPageNumberRef.current,
+                                questionId: currentQuestionRef.current?.id
+                            });
                             storeConversationMessage(
                                 data.transcript,
                                 'user',
@@ -329,6 +339,11 @@ export const usePageVoiceChat = () => {
 
                         // Store AI message
                         if (currentBookIdRef.current && currentPageNumberRef.current) {
+                            console.log('[PageVoiceChat] Storing AI message with context:', {
+                                bookId: currentBookIdRef.current,
+                                pageNumber: currentPageNumberRef.current,
+                                questionId: currentQuestionRef.current?.id
+                            });
                             storeConversationMessage(
                                 currentTranscriptRef.current,
                                 'ai',
@@ -537,6 +552,33 @@ export const usePageVoiceChat = () => {
         setStreamingResponseId(null);
     }, []);
 
+    // Function to update question context when switching questions
+    const updateQuestionContext = useCallback((questionId) => {
+        console.log('[PageVoiceChat] Updating question context to:', questionId);
+        currentQuestionRef.current = { id: questionId };
+        setCurrentQuestion({ id: questionId });
+
+        // Also update the current prompt state to reflect the new question
+        if (currentBookIdRef.current && currentPageNumberRef.current) {
+            console.log('[PageVoiceChat] Fetching updated prompt for new question context');
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+            apiRequest(`${API_BASE_URL}/api/books/${currentBookIdRef.current}/page/${currentPageNumberRef.current}/question/${questionId}/prompt`)
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error(`Failed to fetch prompt: ${response.status}`);
+                })
+                .then(promptData => {
+                    setCurrentPrompt(promptData);
+                    console.log('[PageVoiceChat] Updated prompt state for question:', questionId);
+                })
+                .catch(error => {
+                    console.error('[PageVoiceChat] Failed to update prompt state:', error);
+                });
+        }
+    }, []);
+
     return {
         isConnected,
         isLoading,
@@ -548,6 +590,7 @@ export const usePageVoiceChat = () => {
         disconnect,
         sendAudioData,
         clearConversation,
+        updateQuestionContext,
         // Streaming transcript states
         currentStreamingTranscript,
         isAiSpeaking,
