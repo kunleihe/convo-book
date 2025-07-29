@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { detectSilence } from '../utils/silenceDetection';
 
 export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
     const [isRecording, setIsRecording] = useState(false);
@@ -166,8 +167,17 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
                             offset += chunk.length;
                         }
                         console.log('Using accumulated PCM16 data:', combinedPCM16.length, 'samples');
+
+                        // Check if the accumulated data is silent
+                        const isSilent = detectSilence(combinedPCM16);
+
                         if (onAudioRecorded) {
-                            onAudioRecorded(combinedPCM16);
+                            onAudioRecorded(combinedPCM16, { isSilent });
+                        }
+                    } else {
+                        // No audio data at all - treat as silent
+                        if (onAudioRecorded) {
+                            onAudioRecorded(null, { isSilent: true });
                         }
                     }
                     return;
@@ -184,14 +194,22 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
                 const pcm16Data = await convertWebMToPCM16(blob);
 
                 if (pcm16Data && pcm16Data.length > 0) {
-                    console.log('Audio conversion successful, calling onAudioRecorded with', pcm16Data.length, 'samples');
+                    console.log('Audio conversion successful, checking for silence...');
+
+                    // Check if the recording is silent
+                    const isSilent = detectSilence(pcm16Data);
+
                     if (onAudioRecorded) {
-                        onAudioRecorded(pcm16Data);
+                        onAudioRecorded(pcm16Data, { isSilent });
                     } else {
                         console.error('onAudioRecorded callback is not provided');
                     }
                 } else {
                     console.error('Audio conversion failed - no PCM16 data produced');
+                    // Treat empty data as silent
+                    if (onAudioRecorded) {
+                        onAudioRecorded(null, { isSilent: true });
+                    }
                 }
 
                 // Clean up stream

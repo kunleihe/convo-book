@@ -58,10 +58,10 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
 
             case 'conversation.item.input_audio_transcription.completed':
                 if (message.transcript) {
-                    addTranscription(`[TRANSCRIPTION] ${message.transcript}`, new Date());
                     addDebugMessage(`Transcription completed: "${message.transcript}"`);
 
                     // Forward the transcription completion to the main voice chat WebSocket
+                    // Don't add to local transcriptions array to avoid duplicates
                     if (onTranscriptionComplete && typeof onTranscriptionComplete === 'function') {
                         console.log('[Transcription] Forwarding transcription completion to main WebSocket');
                         onTranscriptionComplete(message);
@@ -96,7 +96,7 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
                 console.log('[Transcription] Unknown message type:', message);
                 break;
         }
-    }, [addDebugMessage, addTranscription, onTranscriptionComplete]);
+    }, [addDebugMessage, onTranscriptionComplete]);
 
     // Configure transcription session after connection
     const configureTranscriptionSession = useCallback((ws) => {

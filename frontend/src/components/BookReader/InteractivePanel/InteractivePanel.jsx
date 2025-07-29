@@ -194,17 +194,15 @@ const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, 
     const getCombinedMessages = () => {
         const combinedMessages = [];
 
-        // Add AI response messages only (no user audio placeholders)
+        // Add conversation messages (both AI and user)
         pageVoiceChat.conversationMessages.forEach(msg => {
-            if (!msg.isUser) { // Only add AI messages
-                combinedMessages.push({
-                    id: msg.id,
-                    content: msg.content,
-                    isUser: false,
-                    timestamp: msg.timestamp,
-                    type: 'ai-response'
-                });
-            }
+            combinedMessages.push({
+                id: msg.id,
+                content: msg.content,
+                isUser: msg.isUser,
+                timestamp: msg.timestamp,
+                type: msg.isUser ? 'user-conversation' : 'ai-response'
+            });
         });
 
         // Add streaming AI response if currently speaking
@@ -306,11 +304,17 @@ const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, 
                                 transcriptionWS.sendAudioData(pcm16Data);
                             }
                         }}
-                        onRecordingComplete={() => {
-                            if (transcriptionWS.isConnected) {
-                                setTimeout(() => {
-                                    transcriptionWS.commitAudioBuffer();
-                                }, 100);
+                        onRecordingComplete={(options = {}) => {
+                            if (options.isSilent) {
+                                // Handle silence - send silence message without adding empty bubble
+                                pageVoiceChat.sendSilenceMessage();
+                            } else {
+                                // Normal flow - commit transcription buffer
+                                if (transcriptionWS.isConnected) {
+                                    setTimeout(() => {
+                                        transcriptionWS.commitAudioBuffer();
+                                    }, 100);
+                                }
                             }
                         }}
                     />
