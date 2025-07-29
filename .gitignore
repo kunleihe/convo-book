@@ -166,3 +166,6 @@ cython_debug/
 
 # Production user data (contains passwords)
 backend/app/db/users/production_users.csv
+
+# Development database
+backend/app_dev.db
