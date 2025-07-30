@@ -289,7 +289,24 @@ export const usePageVoiceChat = () => {
                     break;
 
                 case 'response.audio.done':
+                    console.log('[PageVoiceChat] response.audio.done received - scheduling button enable');
                     isStreamingAudioRef.current = false;
+
+                    // Calculate when the last audio chunk will finish playing
+                    const audioContext = audioContextRef.current;
+                    if (audioContext && nextPlayTimeRef.current > 0) {
+                        const remainingTime = Math.max(0, (nextPlayTimeRef.current - audioContext.currentTime) * 1000);
+                        console.log(`[PageVoiceChat] Audio will finish in ${remainingTime}ms`);
+
+                        setTimeout(() => {
+                            console.log('[PageVoiceChat] Audio finished - enabling voice button');
+                            setIsAiSpeaking(false);
+                        }, remainingTime);
+                    } else {
+                        // Fallback: enable immediately if we can't calculate time
+                        console.log('[PageVoiceChat] Could not calculate audio duration - enabling voice button immediately');
+                        setIsAiSpeaking(false);
+                    }
                     break;
 
                 case 'response.done':
@@ -365,6 +382,7 @@ export const usePageVoiceChat = () => {
                     break;
 
                 case 'response.audio_transcript.done':
+                    console.log('[PageVoiceChat] response.audio_transcript.done received - keeping voice button disabled');
                     if (currentTranscriptRef.current) {
                         addConversationMessage(currentTranscriptRef.current, false);
 
@@ -387,8 +405,7 @@ export const usePageVoiceChat = () => {
                         currentTranscriptRef.current = '';
                     }
 
-                    // Clear streaming state
-                    setIsAiSpeaking(false);
+                    // Clear streaming transcript state but keep isAiSpeaking true until audio finishes
                     setCurrentStreamingTranscript('');
                     setStreamingResponseId(null);
                     break;
