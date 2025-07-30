@@ -88,6 +88,7 @@ def migrate_data():
                 user_id=rds_user.id,  # Use RDS user ID
                 book_id=conv.book_id,
                 page_number=conv.page_number,
+                question_id=conv.question_id if hasattr(conv, 'question_id') else None,
                 sender=conv.sender,
                 text=conv.text,
                 timestamp=conv.timestamp

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 import os
-import json
+import yaml
 import glob
 from typing import List, Dict, Any
 
@@ -19,30 +19,47 @@ def scan_available_books():
     if not os.path.exists(books_dir):
         return []
     
-    book_files = glob.glob(os.path.join(books_dir, "*.json"))
-    book_ids = []
+    # Look for directories with metadata.yaml files
+    book_dirs = []
+    for item in os.listdir(books_dir):
+        item_path = os.path.join(books_dir, item)
+        if os.path.isdir(item_path):
+            metadata_file = os.path.join(item_path, "metadata.yaml")
+            if os.path.exists(metadata_file):
+                book_dirs.append(item)
     
-    for file_path in book_files:
-        filename = os.path.basename(file_path)
-        book_id = os.path.splitext(filename)[0]  # Remove .json extension
-        book_ids.append(book_id)
-    
-    return sorted(book_ids)
+    return sorted(book_dirs)
 
 def load_book_data(book_id: str):
-    """Load book data from JSON file"""
+    """Load book data from YAML files"""
     books_dir = get_books_directory()
-    book_file = os.path.join(books_dir, f"{book_id}.json")
+    book_dir = os.path.join(books_dir, book_id)
+    metadata_file = os.path.join(book_dir, "metadata.yaml")
+    pages_dir = os.path.join(book_dir, "pages")
     
-    if not os.path.exists(book_file):
+    if not os.path.exists(metadata_file) or not os.path.exists(pages_dir):
         raise HTTPException(status_code=404, detail=f"Book '{book_id}' not found")
     
     try:
-        with open(book_file, 'r', encoding='utf-8') as f:
-            book_data = json.load(f)
+        # Load metadata
+        with open(metadata_file, 'r', encoding='utf-8') as f:
+            book_data = yaml.safe_load(f)
+        
+        # Load all page files
+        page_files = glob.glob(os.path.join(pages_dir, "page*.yaml"))
+        pages = []
+        
+        for page_file in sorted(page_files):
+            with open(page_file, 'r', encoding='utf-8') as f:
+                page_data = yaml.safe_load(f)
+                pages.append(page_data)
+        
+        # Combine metadata and pages
+        book_data['pages'] = pages
         return book_data
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail=f"Invalid JSON in book '{book_id}'")
+        
+    except yaml.YAMLError as e:
+        raise HTTPException(status_code=500, detail=f"Invalid YAML in book '{book_id}': {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading book '{book_id}': {str(e)}")
 

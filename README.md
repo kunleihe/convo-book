@@ -146,10 +146,12 @@ export const sessionConfig = {
 ```
 
 ### Adding New Books
-1. Create a JSON file in `backend/data/books/`
-2. Follow the structure of existing books (see `book1.json`)
-3. Include page images in `frontend/public/sample_book/images/`
-4. Add audio files for questions and discussions
+1. Create a directory in `backend/data/books/` with your book ID as the folder name
+2. Add a `metadata.yaml` file with book information (title, coverImageUrl, totalPages, etc.)
+3. Create a `pages/` subdirectory with individual page YAML files (page001.yaml, page002.yaml, etc.)
+4. Follow the structure of existing books (examine any book directory for reference)
+5. Include page images in `frontend/public/sample_book/images/`
+6. Add audio files for questions and discussions as needed
 
 ### Environment Configuration
 The app automatically adjusts CORS settings based on your `ENVIRONMENT` variable:

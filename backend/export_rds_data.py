@@ -56,7 +56,7 @@ def export_to_csv():
         with open('conversations.csv', 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile)
             # Write header
-            writer.writerow(['id', 'user_id', 'book_id', 'page_number', 'sender', 'text', 'timestamp'])
+            writer.writerow(['id', 'user_id', 'book_id', 'page_number', 'question_id', 'sender', 'text', 'timestamp'])
             
             # Write data
             for conv in conversations:
@@ -65,6 +65,7 @@ def export_to_csv():
                     conv.user_id, 
                     conv.book_id, 
                     conv.page_number, 
+                    conv.question_id,
                     conv.sender, 
                     conv.text, 
                     conv.timestamp

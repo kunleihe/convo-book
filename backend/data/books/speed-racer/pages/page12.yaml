@@ -1,0 +1,23 @@
+pageNumber: 12
+imageUrl: /sample_book/images/page12.png
+narrationAudioUrl: https://example.com/books/speed-racer/narration8.mp3
+
+storyText: |
+  Ari and Olive got behind the car and gave it a big push. Their yellow car
+  rolled down the hill. Elinor held on tight and laughed as the wind blew past her.
+
+questions:
+  - id: "q1"
+    questionType: definitive-answer
+    questionText: |
+      Elinor, Olive, and Ari painted their car yellow and drew a racing stripe. 
+      Let's think about what we know and make a prediction! 
+      When you make a prediction, you say what you think will happen. 
+      Do you predict that Elinor's car will go as fast as Camila's car? Why or why not?
+    audioUrl: /sample_book/audios/questions/page12_q1.mp3
+    answerText: No. Because the color of the car doesn't change how fast it moves.
+    follow-up:
+    - Does the color of a car change how fast it goes?
+    - If we paint a car from brown to yellow, will the car go faster?
+
+promptTemplate: template2  

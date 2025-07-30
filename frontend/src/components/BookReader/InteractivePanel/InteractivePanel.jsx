@@ -7,13 +7,29 @@ import userAvatarImage from '../../../assets/user-avatar.png';
 import { fetchAudioWithRetry, getCachedAudio, cacheAudio } from '../../../utils/audioCache';
 import './InteractivePanel.css';
 
-const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pageNumber }) => {
+const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, questionIndex, totalQuestions }) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-    const [lastAudioTimestamp, setLastAudioTimestamp] = useState(null);
 
     // Voice chat hooks
-    const pageVoiceChat = usePageVoiceChat(bookId, pageNumber);
-    const transcriptionWS = useTranscriptionWebSocket(bookId, pageNumber);
+    const pageVoiceChat = usePageVoiceChat();
+
+    // Create callback function to forward transcription completion to main voice chat
+    const handleTranscriptionComplete = (transcriptionMessage) => {
+        console.log('[InteractivePanel] Forwarding transcription completion to main voice chat');
+        // Simulate the transcription completion event for the main voice chat WebSocket
+        if (pageVoiceChat.websocketRef && pageVoiceChat.websocketRef.current) {
+            // Create a synthetic event that the main WebSocket can handle
+            const syntheticEvent = {
+                data: JSON.stringify(transcriptionMessage)
+            };
+            // Call the main WebSocket's message handler directly
+            if (pageVoiceChat.handleWebSocketMessage) {
+                pageVoiceChat.handleWebSocketMessage(syntheticEvent);
+            }
+        }
+    };
+
+    const transcriptionWS = useTranscriptionWebSocket(bookId, pageNumber, handleTranscriptionComplete);
 
     // Connect when panel opens with a question
     useEffect(() => {
@@ -22,12 +38,15 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
         if (question && bookId && pageNumber && mounted) {
             console.log('[InteractivePanel] Connecting voice chat for page:', pageNumber);
 
-            // Clear previous transcriptions and timestamp
+            // Clear previous transcriptions
             transcriptionWS.clearTranscriptions();
-            setLastAudioTimestamp(null);
 
             // Connect both services
-            pageVoiceChat.connect(bookId, pageNumber);
+            if (question && question.id) {
+                pageVoiceChat.connect(bookId, pageNumber, question.id);
+            } else {
+                console.warn('[InteractivePanel] Question missing ID, cannot connect voice chat');
+            }
             transcriptionWS.connect();
         }
 
@@ -41,7 +60,26 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
                 transcriptionWS.disconnect();
             }, 100);
         };
-    }, [question?.questionText, bookId, pageNumber]); // More specific dependency
+    }, [bookId, pageNumber]); // Keep connection stable for all questions on the same page
+
+    // Handle question-specific updates when switching questions
+    useEffect(() => {
+        if (question && question.id && pageVoiceChat.isConnected && bookId && pageNumber) {
+            console.log('[InteractivePanel] Updating for new question:', question.id);
+
+            // Clear conversation messages for new question
+            pageVoiceChat.clearConversation();
+
+            // Clear transcriptions for new question
+            transcriptionWS.clearTranscriptions();
+
+            // Update the question context in the voice chat hook
+            pageVoiceChat.updateQuestionContext(question.id);
+
+            // Update the AI prompt for the new question
+            updateQuestionPrompt(bookId, pageNumber, question.id);
+        }
+    }, [question?.id]); // Only trigger when question ID changes
 
     useEffect(() => {
         if (question && question.audioUrl) {
@@ -67,6 +105,45 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
     const canUseVoiceButton = () => {
         // Disable voice button if audio is playing or not connected
         return !isAudioPlaying && pageVoiceChat.isConnected;
+    };
+
+    // Update AI prompt for new question without reconnecting
+    const updateQuestionPrompt = async (bookId, pageNumber, questionId) => {
+        try {
+            console.log(`[InteractivePanel] Fetching new prompt for question ${questionId}`);
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+            const promptResponse = await fetch(`${API_BASE_URL}/api/books/${bookId}/page/${pageNumber}/question/${questionId}/prompt`);
+
+            if (!promptResponse.ok) {
+                throw new Error(`Failed to fetch prompt: ${promptResponse.status}`);
+            }
+
+            const promptData = await promptResponse.json();
+            console.log('[InteractivePanel] New prompt fetched successfully');
+
+            // Update the WebSocket session with new prompt
+            if (pageVoiceChat.websocketRef && pageVoiceChat.websocketRef.current) {
+                const sessionUpdateMessage = {
+                    type: "session.update",
+                    session: {
+                        modalities: ["text", "audio"],
+                        instructions: promptData,
+                        voice: "shimmer",
+                        input_audio_format: "pcm16",
+                        output_audio_format: "pcm16",
+                        input_audio_transcription: {
+                            model: "whisper-1"
+                        },
+                        turn_detection: null
+                    }
+                };
+
+                pageVoiceChat.websocketRef.current.send(JSON.stringify(sessionUpdateMessage));
+                console.log('[InteractivePanel] Session updated with new question prompt');
+            }
+        } catch (error) {
+            console.error('[InteractivePanel] Failed to update question prompt:', error);
+        }
     };
 
     const playQuestionAudioAsync = async (audioUrl) => {
@@ -117,17 +194,15 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
     const getCombinedMessages = () => {
         const combinedMessages = [];
 
-        // Add AI response messages only (no user audio placeholders)
+        // Add conversation messages (both AI and user)
         pageVoiceChat.conversationMessages.forEach(msg => {
-            if (!msg.isUser) { // Only add AI messages
-                combinedMessages.push({
-                    id: msg.id,
-                    content: msg.content,
-                    isUser: false,
-                    timestamp: msg.timestamp,
-                    type: 'ai-response'
-                });
-            }
+            combinedMessages.push({
+                id: msg.id,
+                content: msg.content,
+                isUser: msg.isUser,
+                timestamp: msg.timestamp,
+                type: msg.isUser ? 'user-conversation' : 'ai-response'
+            });
         });
 
         // Add streaming AI response if currently speaking
@@ -186,7 +261,12 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
     return (
         <div className="interactive-panel">
             <div className="panel-header">
-                <h5 className="mb-0">Chat</h5>
+                <div className="d-flex justify-content-between align-items-center">
+                    <h5 className="mb-0">Chat</h5>
+                    {totalQuestions > 1 && questionIndex !== undefined && (
+                        <small className="text-muted">Question {questionIndex + 1} of {totalQuestions}</small>
+                    )}
+                </div>
                 {pageVoiceChat.isLoading && <small className="text-muted">Connecting...</small>}
                 {pageVoiceChat.error && <small className="text-danger">Error: {pageVoiceChat.error}</small>}
             </div>
@@ -217,7 +297,6 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
                     <VoiceButton
                         disabled={!canUseVoiceButton()}
                         onAudioRecorded={(pcm16Data) => {
-                            setLastAudioTimestamp(new Date());
                             pageVoiceChat.sendAudioData(pcm16Data);
                         }}
                         onAudioChunk={(pcm16Data) => {
@@ -225,11 +304,17 @@ const InteractivePanel = ({ question, messages, onAudioPlayingChange, bookId, pa
                                 transcriptionWS.sendAudioData(pcm16Data);
                             }
                         }}
-                        onRecordingComplete={() => {
-                            if (transcriptionWS.isConnected) {
-                                setTimeout(() => {
-                                    transcriptionWS.commitAudioBuffer();
-                                }, 100);
+                        onRecordingComplete={(options = {}) => {
+                            if (options.isSilent) {
+                                // Handle silence - send silence message without adding empty bubble
+                                pageVoiceChat.sendSilenceMessage();
+                            } else {
+                                // Normal flow - commit transcription buffer
+                                if (transcriptionWS.isConnected) {
+                                    setTimeout(() => {
+                                        transcriptionWS.commitAudioBuffer();
+                                    }, 100);
+                                }
                             }
                         }}
                     />

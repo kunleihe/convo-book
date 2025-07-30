@@ -1,0 +1,24 @@
+pageNumber: 18
+imageUrl: /sample_book/images/page18.png
+narrationAudioUrl: https://example.com/books/speed-racer/narration14.mp3
+
+storyText: |
+  Olive took out her notebook and pen from her bag. She looked closely at
+  the cars and began to draw—first Camila's car, then Elinor's.
+  "Wait a minute," said Olive, thinking hard. "I noticed something! Our car is boxy,
+  but Camilla's car has a different shape!"
+
+questions:
+  - id: "q1"
+    questionType: definitive-answer
+    questionText: |
+      Look, Elinor's car and Camilla's car have different shapes.
+      Let's make a closer observation at the two cars.
+      How is the shape of Camilla's car different from the shape of Elinor's car?
+    audioUrl: /sample_book/audios/questions/page18_q1.mp3
+    answerText: Elinor's car looks like a box, but Camilla's car is round and smooth.
+    follow-up:
+    - Is Elinor's car boxy or round?
+    - Is Camilla's car boxy or round?
+
+promptTemplate: template2  

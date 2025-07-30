@@ -1,0 +1,29 @@
+pageNumber: 7
+imageUrl: /sample_book/images/page7.png
+narrationAudioUrl: https://example.com/books/speed-racer/narration5.mp3
+
+storyText: |
+  The three friends looked at Camilla's car. Camilla's car was so cool—and
+  really fast. It was bright yellow, with a racing stripe. It even had a nice cup
+  holder inside!
+  "Your car is nice, too!" said Camilla kindly.
+  "Thanks, Camilla! We made it ourselves. But it’s not going as fast as yours," said
+  Elinor, scratching her chin. "I wonder how we can make our car go faster."
+
+questions:
+  - id: "q1"
+    questionType: open-ended
+    questionText: | 
+      Camila’s car is faster. Let's look closely at Elinor’s car and Camilla’s car to see if we can figure out why Camilla’s car is faster. 
+      How is Camilla's car different from Elinor’s car? 
+    audioUrl: /sample_book/audios/questions/page7_q1.mp3
+    follow-up:
+    - Did you notice any differences between the colors of their car?
+    - Camilla’s car has a really nice cup holder. Does Elinor’s car also have one?
+  - id: "q2"
+    questionType: open-ended
+    questionText: Now here’s something else to think about. What can Elinor and her friends do to make their car go faster? 
+    audioUrl: /sample_book/audios/questions/page7_q2.mp3
+    follow-up:
+    - What do you think Elinor and her friends should change on their car?
+    - If you are building a car, how would you make it go faster?

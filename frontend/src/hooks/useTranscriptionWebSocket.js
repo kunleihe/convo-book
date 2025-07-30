@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
-import { storeConversationMessage } from '../utils/conversationStorage';
 
-export const useTranscriptionWebSocket = (bookId, pageNumber) => {
+export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionComplete = null) => {
     const [isConnected, setIsConnected] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
     const [transcriptions, setTranscriptions] = useState([]);
@@ -59,17 +58,13 @@ export const useTranscriptionWebSocket = (bookId, pageNumber) => {
 
             case 'conversation.item.input_audio_transcription.completed':
                 if (message.transcript) {
-                    addTranscription(`[TRANSCRIPTION] ${message.transcript}`, new Date());
                     addDebugMessage(`Transcription completed: "${message.transcript}"`);
 
-                    // Store user message
-                    if (currentBookId.current && currentPageNumber.current) {
-                        storeConversationMessage(
-                            message.transcript,
-                            'user',
-                            currentBookId.current,
-                            currentPageNumber.current
-                        );
+                    // Forward the transcription completion to the main voice chat WebSocket
+                    // Don't add to local transcriptions array to avoid duplicates
+                    if (onTranscriptionComplete && typeof onTranscriptionComplete === 'function') {
+                        console.log('[Transcription] Forwarding transcription completion to main WebSocket');
+                        onTranscriptionComplete(message);
                     }
 
                     console.log('[Transcription] Completed:', message);
@@ -101,7 +96,7 @@ export const useTranscriptionWebSocket = (bookId, pageNumber) => {
                 console.log('[Transcription] Unknown message type:', message);
                 break;
         }
-    }, [addDebugMessage, addTranscription]);
+    }, [addDebugMessage, onTranscriptionComplete]);
 
     // Configure transcription session after connection
     const configureTranscriptionSession = useCallback((ws) => {

@@ -10,6 +10,7 @@ from ..auth import get_current_user
 class ConversationCreate(BaseModel):
     book_id: str
     page_number: int
+    question_id: str
     sender: str  # "user" or "ai"
     text: str
 
@@ -17,6 +18,7 @@ class ConversationResponse(BaseModel):
     id: int
     book_id: str
     page_number: int
+    question_id: str
     sender: str
     text: str
     timestamp: datetime
@@ -44,6 +46,7 @@ def store_conversation(
         user_id=current_user.id,
         book_id=conversation.book_id,
         page_number=conversation.page_number,
+        question_id=conversation.question_id,
         sender=conversation.sender,
         text=conversation.text
     )
@@ -56,6 +59,7 @@ def store_conversation(
 def get_conversations(
     book_id: Optional[str] = None,
     page_number: Optional[int] = None,
+    question_id: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -66,5 +70,6 @@ def get_conversations(
         query = query.filter(Conversation.book_id == book_id)
     if page_number is not None:
         query = query.filter(Conversation.page_number == page_number)
-    
+    if question_id:
+        query = query.filter(Conversation.question_id == question_id)
     return query.order_by(Conversation.timestamp).all() 

@@ -1,0 +1,25 @@
+pageNumber: 16
+imageUrl: /sample_book/images/page16.png
+narrationAudioUrl: https://example.com/books/speed-racer/narration12.mp3
+
+storyText: 
+  It was time to test the car again! Now it had a cup holder, just like
+  Camilla's.
+  Elinor climbed in, ready to go. With a big push from Olive and Ari, the car began
+  to roll down the hill.
+
+questions:
+  - id: "q1"
+    questionType: definitive-answer
+    questionText: |
+      Now Elinor and her friends added a cupholder to the car. 
+      Let's think about what we know and make a prediction again!
+      When you make a prediction, you say what you think will happen. 
+      Do you predict that Elinor's car will go as fast as Camila's car? Why or why not?
+    audioUrl: /sample_book/audios/questions/page16_q1.mp3
+    answerText: No. Because the cupholder doesn't change how fast the car moves.
+    follow-up:
+    - Does having a cup holder change how fast a car goes?
+    - If we add a cup holder to a car, do you think it will go faster?
+
+promptTemplate: template2  
