@@ -103,8 +103,15 @@ const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, 
     };
 
     const canUseVoiceButton = () => {
-        // Disable voice button if audio is playing or not connected
-        return !isAudioPlaying && pageVoiceChat.isConnected;
+        // Disable voice button if question audio is playing, AI is speaking, or not connected
+        const canUse = !isAudioPlaying && !pageVoiceChat.isAiSpeaking && pageVoiceChat.isConnected;
+        console.log('[InteractivePanel] Voice button state:', {
+            isAudioPlaying,
+            isAiSpeaking: pageVoiceChat.isAiSpeaking,
+            isConnected: pageVoiceChat.isConnected,
+            canUse
+        });
+        return canUse;
     };
 
     // Update AI prompt for new question without reconnecting
