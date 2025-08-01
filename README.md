@@ -150,7 +150,7 @@ export const sessionConfig = {
 2. Add a `metadata.yaml` file with book information (title, coverImageUrl, totalPages, etc.)
 3. Create a `pages/` subdirectory with individual page YAML files (page001.yaml, page002.yaml, etc.)
 4. Follow the structure of existing books (examine any book directory for reference)
-5. Include page images in `frontend/public/sample_book/images/`
+5. Include page images in `frontend/public/speed_racer/images/`
 6. Add audio files for questions and discussions as needed
 
 ### Environment Configuration

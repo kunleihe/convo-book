@@ -1,5 +1,5 @@
 pageNumber: 2
-imageUrl: /sample_book/images/page2.png
+imageUrl: /speed_racer/images/page2.png
 narrationAudioUrl: https://example.com/books/speed-racer/narration2.mp3
 
 storyText: |
@@ -15,6 +15,6 @@ questions:
     questionText: | 
       Parent and kid, let’s take a moment to chat together! 
       Did you ever ride in a car going really fast? How did it feel?
-    audioUrl: /sample_book/audios/questions/page2_q1.mp3
+    audioUrl: /speed_racer/audios/questions/page2_q1.mp3
     follow-up:
     - Imagine you're in a fast car. Will it make you feel excited or a little scared?
