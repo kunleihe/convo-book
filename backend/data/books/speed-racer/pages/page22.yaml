@@ -1,5 +1,5 @@
 pageNumber: 22
-imageUrl: /sample_book/images/page22.png
+imageUrl: /speed_racer/images/page22.png
 narrationAudioUrl: https://example.com/books/speed-racer/narration18.mp3
 
 storyText: |
@@ -14,7 +14,7 @@ questions:
     questionText: |
       Let’s stop here for a sec and chat about something together. 
       Camilla's car looks like a bird or a fish. What is the same about their shapes?
-    audioUrl: /sample_book/audios/questions/page22_q1.mp3
+    audioUrl: /speed_racer/audios/questions/page22_q1.mp3
     answerText: They are both pointy in the front and round in the middle.
     follow-up:
     - What do they look like in the front, pointy or boxy?
