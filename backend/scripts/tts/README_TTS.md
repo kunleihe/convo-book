@@ -69,7 +69,7 @@ You can also specify custom paths and API key:
 ```bash
 python generate_question_audio.py \
   --book-dir "../../data/books/speed-racer" \
-  --output-dir "../../../frontend/public/sample_book/audios/questions" \
+  --output-dir "../../../frontend/public/speed_racer/audios/questions" \
   --openai-key "your-api-key-here" \
   --page 12 \
   --question-id q1
@@ -84,7 +84,7 @@ python generate_question_audio.py \
 
 ## Output
 
-The script will generate `.mp3` audio files in the `frontend/public/sample_book/audios/questions/` directory with filenames matching those specified in the YAML files (e.g., `page2_q1.mp3`, `page7_q1.mp3`, etc.).
+The script will generate `.mp3` audio files in the `frontend/public/speed_racer/audios/questions/` directory with filenames matching those specified in the YAML files (e.g., `page2_q1.mp3`, `page7_q1.mp3`, etc.).
 
 ## Example
 
@@ -93,7 +93,7 @@ For a question in `page02.yaml`:
 questions:
   - id: "q1"
     questionText: "Parent and kid, let's take a moment to chat together! Did you ever ride in a car going really fast? How did it feel?"
-    audioUrl: /sample_book/audios/questions/page2_q1.wav
+    audioUrl: /speed_racer/audios/questions/page2_q1.wav
 ```
 
 The script will generate `page2_q1.mp3` in the output directory.

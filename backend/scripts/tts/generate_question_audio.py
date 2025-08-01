@@ -164,7 +164,7 @@ def main():
                        default="../../data/books/speed-racer",
                        help="Path to the book directory containing pages")
     parser.add_argument("--output-dir", type=str,
-                       default="../../../frontend/public/sample_book/audios/questions",
+                       default="../../../frontend/public/speed_racer/audios/questions",
                        help="Output directory for audio files")
     parser.add_argument("--openai-key", type=str,
                        help="OpenAI API key (or set OPENAI_API_KEY environment variable)")
