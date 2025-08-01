@@ -10,3 +10,5 @@ questions:
       What is your favoriate color?
       Press the "hold to talk" button to record your answer.
     audioUrl: /practice/audios/questions/page1_q1.mp3
+    follow-up:
+      - What is your favoriate color, is it red, blue, or something else?

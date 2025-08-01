@@ -643,6 +643,22 @@ export const usePageVoiceChat = () => {
             // Add a message bubble for silence to show user interaction
             addConversationMessage('<No speech detected...>', true);
 
+            // Store silence message in database
+            if (currentBookIdRef.current && currentPageNumberRef.current) {
+                console.log('[PageVoiceChat] Storing silence message with context:', {
+                    bookId: currentBookIdRef.current,
+                    pageNumber: currentPageNumberRef.current,
+                    questionId: currentQuestionRef.current?.id
+                });
+                storeConversationMessage(
+                    '<no speech detected>',
+                    'user',
+                    currentBookIdRef.current,
+                    currentPageNumberRef.current,
+                    currentQuestionRef.current?.id
+                );
+            }
+
             // Check if this is the first message or a follow-up
             if (conversationMessages.length === 0) {
                 // This is the first message - use formatted approach
