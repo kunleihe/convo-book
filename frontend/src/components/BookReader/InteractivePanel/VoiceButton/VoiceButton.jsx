@@ -1,5 +1,7 @@
 import React from 'react';
 import { useAudioRecorder } from '../../../../hooks/useAudioRecorder';
+import microphoneIcon from '../../../../assets/icons/microphone.svg';
+import recordIcon from '../../../../assets/icons/record.svg';
 import './VoiceButton.css';
 
 const VoiceButton = ({
@@ -39,20 +41,20 @@ const VoiceButton = ({
         }
     );
 
-    const handleRecordStart = async () => {
-        if (!isRecording && !disabled) {
-            console.log('[VoiceButton] Starting recording...');
-            const success = await startRecording();
-            if (!success) {
-                console.error('[VoiceButton] Failed to start recording');
+    const handleClick = async () => {
+        if (!disabled) {
+            if (!isRecording) {
+                // Start recording
+                console.log('[VoiceButton] Starting recording...');
+                const success = await startRecording();
+                if (!success) {
+                    console.error('[VoiceButton] Failed to start recording');
+                }
+            } else {
+                // Stop recording
+                console.log('[VoiceButton] Stopping recording...');
+                stopRecording();
             }
-        }
-    };
-
-    const handleRecordStop = () => {
-        if (isRecording) {
-            console.log('[VoiceButton] Stopping recording...');
-            stopRecording();
         }
     };
 
@@ -60,13 +62,19 @@ const VoiceButton = ({
         <button
             className={`voice-button btn btn-primary ${isRecording ? 'recording' : ''}`}
             disabled={disabled}
-            onMouseDown={handleRecordStart}
-            onMouseUp={handleRecordStop}
-            onMouseLeave={handleRecordStop} // Stop recording if mouse leaves button
-            onTouchStart={handleRecordStart}
-            onTouchEnd={handleRecordStop}
+            onClick={handleClick}
         >
-            {isRecording ? 'Recording...' : 'Hold to Talk'}
+            {isRecording ? (
+                <>
+                    <img src={recordIcon} alt="Recording" className="button-icon" />
+                    Recording... (Tap to Stop)
+                </>
+            ) : (
+                <>
+                    <img src={microphoneIcon} alt="Microphone" className="button-icon" />
+                    Tap to Record
+                </>
+            )}
         </button>
     );
 };
