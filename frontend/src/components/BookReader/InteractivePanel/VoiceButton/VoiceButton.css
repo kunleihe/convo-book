@@ -2,8 +2,12 @@
     width: 100%;
     padding: 0.75rem 1.5rem;
     border-radius: 2rem;
-    font-weight: 500;
+    font-weight: 600;
     transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
 }
 
 .voice-button:disabled {
@@ -13,9 +17,16 @@
 }
 
 .voice-button.recording {
-    background-color: #67AE6E !important;
-    border-color: #67AE6E !important;
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
     animation: pulse 1.5s infinite;
+    font-weight: 600;
+}
+
+.button-icon {
+    width: 1.4rem;
+    height: 1.4rem;
+    filter: brightness(0) invert(1);
 }
 
 @keyframes pulse {

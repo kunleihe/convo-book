@@ -17,9 +17,6 @@ questions:
       Camila’s car is faster. Let's look closely at Elinor’s car and Camilla’s car to see if we can figure out why Camilla’s car is faster. 
       How is Camilla's car different from Elinor’s car? 
     audioUrl: /speed_racer/audios/questions/page7_q1.mp3
-    follow-up:
-    - Did you notice any differences between the colors of their car?
-    - Camilla’s car has a really nice cup holder. Does Elinor’s car also have one?
   - id: "q2"
     questionType: open-ended
     questionText: Now here’s something else to think about. What can Elinor and her friends do to make their car go faster? 

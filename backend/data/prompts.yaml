@@ -40,7 +40,11 @@ open-ended: |
 
   2.1 If the child's response is relevant, end the conversation:
       - Acknowledge the child's response briefly
-      - Ask the user-provided follow-up questions if necessary.
+      - Ask the user-provided follow-up questions only if it's necessary.
+        - Example: 
+        - Question: Did you ever ride in a car going really fast? How did it feel?
+        - Child's response: No, never.
+        - Follow-up question: Imagine you're in a fast car. Will it make you feel excited or a little scared?
       - Do not include any question.
       - End the conversation.
 
