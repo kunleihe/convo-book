@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+# from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.health_check import health_check_router
 from app.routes.realtime import realtime_router
@@ -33,11 +33,11 @@ app.include_router(conversations_router, prefix="/api", tags=["conversations"])
 async def root():
     return {"message": "Convo Book API", "status": "running", "docs": "/docs"}
 
-# Mount React app (when built for production)
-import os
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-frontend_build_path = os.path.join(project_root, "frontend", "build")
+# # Mount React app (when built for production)
+# import os
+# project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# frontend_build_path = os.path.join(project_root, "frontend", "build")
 
-# Only mount static files if build directory exists (production mode)
-if os.path.exists(frontend_build_path):
-    app.mount("/app", StaticFiles(directory=frontend_build_path, html=True), name="react-app")
+# # Only mount static files if build directory exists (production mode)
+# if os.path.exists(frontend_build_path):
+#     app.mount("/app", StaticFiles(directory=frontend_build_path, html=True), name="react-app")

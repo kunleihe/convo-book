@@ -28,10 +28,12 @@ OPENAI_TRANSCRIPTION_WS_URL = "wss://api.openai.com/v1/realtime?intent=transcrip
 def get_cors_origins():
     """Get CORS allowed origins based on environment"""
     if ENVIRONMENT == "production":
-        # Production origins - replace with your actual domain
-        return [
-            "https://cs6460.d2j24wh52qkpf2.amplifyapp.com"
-        ]
+        # Get frontend URL from environment variable
+        frontend_url = os.getenv("FRONTEND_URL")
+        if frontend_url:
+            return [frontend_url]
+        else:
+            return []
     elif ENVIRONMENT == "staging":
         # Staging origins
         return [
