@@ -27,19 +27,26 @@ OPENAI_TRANSCRIPTION_WS_URL = "wss://api.openai.com/v1/realtime?intent=transcrip
 # CORS Configuration - Environment Aware
 def get_cors_origins():
     """Get CORS allowed origins based on environment"""
-    if ENVIRONMENT == "production":
-        # Get frontend URL from environment variable
+    # 无论是 production 还是 staging，都优先尝试从环境变量读取
+    if ENVIRONMENT in ["production", "staging"]:
+        origins = []
+        
+        # 1. 从环境变量获取 
         frontend_url = os.getenv("FRONTEND_URL")
         if frontend_url:
-            return [frontend_url]
-        else:
-            return []
-    elif ENVIRONMENT == "staging":
-        # Staging origins
-        return [
-            "https://staging.d2j24wh52qkpf2.amplifyapp.com",  # Staging Amplify URL
-            "http://localhost:5173",  # For local testing against staging
-        ]
+            # 如果包含逗号，分割成列表；否则作为单个 URL
+            if "," in frontend_url:
+                origins.extend([url.strip() for url in frontend_url.split(",")])
+            else:
+                origins.append(frontend_url)
+        
+        # 2. 对于 Staging，保留一些默认值方便调试 (可选)
+        if ENVIRONMENT == "staging":
+            origins.append("http://localhost:5173")
+            # 你也可以保留旧的硬编码地址，也可以删掉
+            
+        return origins
+        
     else:
         # Development origins (default)
         return [
