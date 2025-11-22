@@ -117,8 +117,6 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
             };
 
             // Connect the audio pipeline: source -> processor
-            // Note: We need to connect to destination for some browsers to process audio
-            // Use GainNode with zero gain to prevent audio feedback
             const gainNode = audioContextRef.current.createGain();
             gainNode.gain.value = 0; // Mute the audio to prevent feedback
 
@@ -155,83 +153,63 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
                     scriptProcessorRef.current = null;
                 }
 
-                if (recordedChunksRef.current.length === 0) {
-                    console.error('No audio chunks recorded');
-                    // Use accumulated PCM16 data as fallback
-                    if (accumulatedPCM16DataRef.current.length > 0) {
-                        const totalLength = accumulatedPCM16DataRef.current.reduce((sum, chunk) => sum + chunk.length, 0);
-                        const combinedPCM16 = new Int16Array(totalLength);
-                        let offset = 0;
-                        for (const chunk of accumulatedPCM16DataRef.current) {
-                            combinedPCM16.set(chunk, offset);
-                            offset += chunk.length;
-                        }
-                        console.log('Using accumulated PCM16 data:', combinedPCM16.length, 'samples');
-
-                        // Check if the accumulated data is silent
-                        const isSilent = detectSilence(combinedPCM16);
-
-                        if (onAudioRecorded) {
-                            onAudioRecorded(combinedPCM16, { isSilent });
-                        }
-                    } else {
-                        // No audio data at all - treat as silent
-                        if (onAudioRecorded) {
-                            onAudioRecorded(null, { isSilent: true });
-                        }
-                    }
-                    return;
-                }
-
-                const blob = new Blob(recordedChunksRef.current, { type: mimeType });
-                console.log('Created blob:', blob.size, 'bytes');
-
-                const url = URL.createObjectURL(blob);
-                setLastRecordingUrl(url);
-
-                // Convert to PCM16 and send to API
-                console.log('Converting audio to PCM16...');
-                const pcm16Data = await convertWebMToPCM16(blob);
-
-                if (pcm16Data && pcm16Data.length > 0) {
-                    console.log('Audio conversion successful, checking for silence...');
-
-                    // Check if the recording is silent
-                    const isSilent = detectSilence(pcm16Data);
-
-                    if (onAudioRecorded) {
-                        onAudioRecorded(pcm16Data, { isSilent });
-                    } else {
-                        console.error('onAudioRecorded callback is not provided');
-                    }
+                // Prepare Blob
+                let finalBlob = null;
+                if (recordedChunksRef.current.length > 0) {
+                    finalBlob = new Blob(recordedChunksRef.current, { type: mimeType });
+                    console.log('Created blob:', finalBlob.size, 'bytes');
+                    const url = URL.createObjectURL(finalBlob);
+                    setLastRecordingUrl(url);
                 } else {
-                    console.error('Audio conversion failed - no PCM16 data produced');
-                    // Treat empty data as silent
-                    if (onAudioRecorded) {
-                        onAudioRecorded(null, { isSilent: true });
-                    }
+                    console.warn('No recorded chunks for Blob');
                 }
 
-                // Clean up stream
+                // Convert to PCM16 (using Blob if available, or fallback to accumulator)
+                let pcm16Data = null;
+                
+                if (finalBlob) {
+                    console.log('Converting audio to PCM16 from Blob...');
+                    pcm16Data = await convertWebMToPCM16(finalBlob);
+                } else if (accumulatedPCM16DataRef.current.length > 0) {
+                    // Fallback to accumulated chunks if Blob creation failed
+                    const totalLength = accumulatedPCM16DataRef.current.reduce((sum, chunk) => sum + chunk.length, 0);
+                    pcm16Data = new Int16Array(totalLength);
+                    let offset = 0;
+                    for (const chunk of accumulatedPCM16DataRef.current) {
+                        pcm16Data.set(chunk, offset);
+                        offset += chunk.length;
+                    }
+                    console.log('Using accumulated PCM16 data fallback:', pcm16Data.length, 'samples');
+                }
+
+                // Check silence and callback
+                if (onAudioRecorded) {
+                    const isSilent = pcm16Data ? detectSilence(pcm16Data) : true;
+                    
+                    // Pass BOTH pcm16Data AND the Blob
+                    onAudioRecorded(pcm16Data, { 
+                        isSilent, 
+                        blob: finalBlob,
+                        mimeType: mimeType 
+                    });
+                } else {
+                    console.error('onAudioRecorded callback is not provided');
+                }
+
+                // Cleanup resources
                 if (audioStreamRef.current) {
                     audioStreamRef.current.getTracks().forEach(track => track.stop());
                 }
-
-                // Clean up AudioContext
                 if (audioContextRef.current) {
                     audioContextRef.current.close();
                 }
             };
 
-            // Use shorter intervals for regular recording
             mediaRecorderRef.current.start(100);
             setIsRecording(true);
             recordingStartTimeRef.current = Date.now();
-
-            // Start timer
             recordingTimerRef.current = setInterval(updateRecordingTime, 100);
 
-            console.log('Recording started successfully with real-time PCM16 capture');
             return true;
         } catch (error) {
             console.error('Error starting recording:', error);
@@ -244,9 +222,6 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
 
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
             mediaRecorderRef.current.stop();
-            console.log('MediaRecorder stopped');
-        } else {
-            console.log('MediaRecorder not in recording state:', mediaRecorderRef.current?.state);
         }
 
         setIsRecording(false);
@@ -257,27 +232,19 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
             recordingTimerRef.current = null;
         }
 
-        // Clean up Web Audio API components
         if (scriptProcessorRef.current) {
             scriptProcessorRef.current.disconnect();
             scriptProcessorRef.current = null;
-            console.log('ScriptProcessorNode disconnected');
         }
 
-        // Clean up audio stream immediately (don't wait for MediaRecorder.onstop)
         if (audioStreamRef.current) {
-            audioStreamRef.current.getTracks().forEach(track => {
-                track.stop();
-                console.log('Audio track stopped:', track.kind);
-            });
+            audioStreamRef.current.getTracks().forEach(track => track.stop());
             audioStreamRef.current = null;
         }
 
-        // Clean up AudioContext
         if (audioContextRef.current) {
             audioContextRef.current.close();
             audioContextRef.current = null;
-            console.log('AudioContext closed');
         }
 
         setRecordingTime('00:00');
@@ -299,4 +266,4 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
         stopRecording,
         playLastRecording,
     };
-}; 
+};
