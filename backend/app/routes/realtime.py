@@ -5,7 +5,7 @@ import websockets
 import traceback
 
 from fastapi import WebSocket, WebSocketDisconnect, APIRouter
-from app.config import VENDOR_WS_URL, API_KEY, USE_AZURE_OPENAI, SESSION_CONFIG, OPENAI_TRANSCRIPTION_WS_URL 
+from app.config import settings, SESSION_CONFIG
 
 realtime_router = APIRouter()
 
@@ -17,11 +17,11 @@ logging.basicConfig(
 # headers for realtime endpoint
 extra_headers = (
     {
-        "Authorization": f"Bearer {API_KEY}",
+        "Authorization": f"Bearer {settings.API_KEY}",
         "OpenAI-Beta": "realtime=v1",
     }
-    if USE_AZURE_OPENAI
-    else {"api-key": API_KEY}
+    if settings.USE_AZURE_OPENAI
+    else {"api-key": settings.API_KEY}
 )
 
 async def relay_messages(client_ws: WebSocket, vendor_ws):
@@ -91,7 +91,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         async with websockets.connect(
-            VENDOR_WS_URL, extra_headers=extra_headers
+            settings.VENDOR_WS_URL, extra_headers=extra_headers
         ) as vendor_ws:
             logging.info("Connected to vendor WebSocket.")
             await relay_messages(websocket, vendor_ws)
@@ -145,7 +145,7 @@ async def transcription_websocket_endpoint(websocket: WebSocket):
 
     try:
         async with websockets.connect(
-            OPENAI_TRANSCRIPTION_WS_URL, extra_headers=extra_headers
+            settings.OPENAI_TRANSCRIPTION_WS_URL, extra_headers=extra_headers
         ) as vendor_ws:
             logging.info("Connected to OpenAI transcription WebSocket with API key")
             

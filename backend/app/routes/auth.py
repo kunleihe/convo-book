@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from ..db.database import SessionLocal
 from ..db.models import User
-from ..config import JWT_SECRET_KEY, JWT_ALGORITHM, JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+from ..config import settings
 import jwt
 import datetime
 
@@ -26,8 +26,8 @@ def login(login_request: LoginRequest, db: Session = Depends(get_db)):
     if not user or user.password != login_request.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = jwt.encode(
-        {"sub": user.username, "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=JWT_ACCESS_TOKEN_EXPIRE_MINUTES)},
-        JWT_SECRET_KEY,
-        algorithm=JWT_ALGORITHM
+        {"sub": user.username, "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES)},
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM
     )
     return {"access_token": token}

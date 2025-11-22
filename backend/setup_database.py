@@ -13,16 +13,16 @@ import os
 import sys
 from app.db.database import Base, engine
 from app.db.add_users import add_users
-from app.config import ENVIRONMENT, SQLALCHEMY_DATABASE_URL
+from app.config import settings
 
 def setup_database():
     """Reset database and add users"""
     
-    print(f"🔄 Setting up database for environment: {ENVIRONMENT}")
-    print(f"📂 Database URL: {SQLALCHEMY_DATABASE_URL}")
+    print(f"🔄 Setting up database for environment: {settings.ENVIRONMENT}")
+    print(f"📂 Database URL: {settings.SQLALCHEMY_DATABASE_URL}")
     
     # Safety check for production
-    if ENVIRONMENT == "production":
+    if settings.ENVIRONMENT == "production":
         confirm = input("⚠️  You are about to reset the PRODUCTION database. Type 'YES' to confirm: ")
         if confirm != "YES":
             print("❌ Database setup cancelled")

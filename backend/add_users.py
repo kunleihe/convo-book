@@ -11,12 +11,12 @@ python add_users.py
 
 import sys
 from app.db.add_users import add_users
-from app.config import ENVIRONMENT
+from app.config import settings
 
 def add_users_simple():
     """Add users for current environment"""
     
-    print(f"👥 Adding users for environment: {ENVIRONMENT}")
+    print(f"👥 Adding users for environment: {settings.ENVIRONMENT}")
     
     try:
         add_users()

@@ -7,14 +7,14 @@ from app.routes.books import books_router
 from app.routes.prompts import prompts_router
 from app.routes.auth import router as auth_router
 from app.routes.conversations import router as conversations_router
-from app.config import CORS_ORIGINS
+from app.config import settings
 
 app = FastAPI(title="Convo Book API", description="Real-time communication hub")
 
 # Add CORS middleware - dynamically configured based on environment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

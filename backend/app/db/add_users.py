@@ -2,16 +2,16 @@ import csv
 import os
 from ..db.database import SessionLocal
 from ..db.models import User
-from ..config import ENVIRONMENT
+from ..config import settings
 
 def get_users():
-    if ENVIRONMENT == "development":
+    if settings.ENVIRONMENT == "development":
         from .users.development_users import USERS
         return USERS
-    elif ENVIRONMENT == "staging":
+    elif settings.ENVIRONMENT == "staging":
         from .users.staging_users import USERS
         return USERS
-    elif ENVIRONMENT == "production":
+    elif settings.ENVIRONMENT == "production":
         csv_path = os.path.join(os.path.dirname(__file__), "users", "production_users.csv")
         users = []
         with open(csv_path, 'r') as file:

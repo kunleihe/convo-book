@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 import jwt
 from .db.database import SessionLocal
 from .db.models import User
-from .config import JWT_SECRET_KEY, JWT_ALGORITHM
+from .config import settings
 
 security = HTTPBearer()
 
@@ -21,7 +21,7 @@ def get_current_user(
 ):
     token = credentials.credentials
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(
