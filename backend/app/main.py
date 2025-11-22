@@ -7,6 +7,7 @@ from app.routes.books import books_router
 from app.routes.prompts import prompts_router
 from app.routes.auth import router as auth_router
 from app.routes.conversations import router as conversations_router
+from app.routes.uploads import router as uploads_router
 from app.config import settings
 
 app = FastAPI(title="Convo Book API", description="Real-time communication hub")
@@ -27,6 +28,7 @@ app.include_router(books_router, prefix="/api")
 app.include_router(prompts_router, prefix="/api")
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(conversations_router, prefix="/api", tags=["conversations"])
+app.include_router(uploads_router, prefix="/api", tags=["uploads"])
 
 # Root API endpoint
 @app.get("/")
