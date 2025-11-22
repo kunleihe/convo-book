@@ -25,19 +25,10 @@ app.include_router(health_check_router, prefix="/health")
 app.include_router(realtime_router)
 app.include_router(books_router, prefix="/api")
 app.include_router(prompts_router, prefix="/api")
-app.include_router(auth_router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth")
 app.include_router(conversations_router, prefix="/api", tags=["conversations"])
 
 # Root API endpoint
 @app.get("/")
 async def root():
     return {"message": "Convo Book API", "status": "running", "docs": "/docs"}
-
-# # Mount React app (when built for production)
-# import os
-# project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-# frontend_build_path = os.path.join(project_root, "frontend", "build")
-
-# # Only mount static files if build directory exists (production mode)
-# if os.path.exists(frontend_build_path):
-#     app.mount("/app", StaticFiles(directory=frontend_build_path, html=True), name="react-app")
