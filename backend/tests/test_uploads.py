@@ -26,7 +26,7 @@ class TestUploadsAPI(unittest.TestCase):
         payload = {
             "filename": "test_recording.webm",
             "content_type": "video/webm",
-            "book_id": "Speed-Racer", # Intentionally mixed case to test if we handle it (though our logic assumes frontend sends clean IDs)
+            "book_id": "Speed-Racer", 
             "page_number": 1,
             "stage": "read", 
             "username": "test_user"
@@ -41,10 +41,13 @@ class TestUploadsAPI(unittest.TestCase):
         
         self.assertEqual(data['upload_url'], mock_url)
         
-        # Verify the S3 Key structure (Kebab Case Enforcement)
-        # Expected: user-data/test_user/Speed-Racer/page-01/read-aloud-{timestamp}-{uuid}.webm
+        # Verify the S3 Key structure (Now including 'media/')
+        # Expected: user-data/test_user/Speed-Racer/page-01/media/read-{timestamp}-{uuid}.webm
         generated_key = data['key']
-        self.assertTrue(generated_key.startswith("user-data/test_user/Speed-Racer/page-01/read-aloud-"))
+        expected_prefix = "user-data/test_user/Speed-Racer/page-01/media/read-"
+        
+        self.assertTrue(generated_key.startswith(expected_prefix), 
+                        f"Key '{generated_key}' does not start with '{expected_prefix}'")
         self.assertTrue(generated_key.endswith(".webm"))
         
         print("\n✅ Upload URL Generation Test Passed!")
