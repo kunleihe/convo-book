@@ -1,5 +1,6 @@
 import boto3
 import json
+import yaml
 from botocore.exceptions import ClientError
 from botocore.config import Config
 from .config import settings
@@ -48,7 +49,23 @@ class S3Client:
             print(f"Error decoding JSON file: {e}")
             return None
 
+    def read_yaml(self, key: str):
+        """
+        Read a YAML file from the S3 bucket and return the data as a dictionary/list
+        """
+        try:
+            response = self.s3_client.get_object(Bucket=self.bucket_name, Key=key)
+            file_content = response['Body'].read().decode('utf-8')
+            return yaml.safe_load(file_content)
+        except ClientError as e:
+            print(f"Error reading YAML file from S3 ({key}): {e}")
+            return None
+        except yaml.YAMLError as e:
+            print(f"Error decoding YAML file ({key}): {e}")
+            return None
+
     def generate_download_url(self, object_name: str, expiration=3600):
+
         """
         Generate a presigned URL to download a file from the S3 bucket
         """
