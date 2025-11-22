@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Container, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap';
 import { useAuth } from '../../hooks/useAuth.jsx';
+import { login as apiLogin } from '../../utils/api';
 
 const Login = ({ onLoginSuccess }) => {
     const [username, setUsername] = useState('');
@@ -15,29 +16,19 @@ const Login = ({ onLoginSuccess }) => {
         setError('');
 
         try {
-            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-            const response = await fetch(`${API_BASE_URL}/api/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password }),
-            });
+            // Use apiLogin helper instead of direct fetch
+            // This handles the correct endpoint /api/auth/login
+            const data = await apiLogin(username, password);
 
-            if (response.ok) {
-                const data = await response.json();
-                // Use auth context login method
-                login(data.access_token);
-                // Call success callback
-                if (onLoginSuccess) {
-                    onLoginSuccess();
-                }
-            } else {
-                const errorData = await response.json().catch(() => ({ detail: 'Login failed' }));
-                setError(errorData.detail || 'Invalid credentials');
+            // Pass username to auth context to store it
+            login(data.access_token, username);
+
+            // Call success callback
+            if (onLoginSuccess) {
+                onLoginSuccess();
             }
         } catch (err) {
-            setError('Login failed. Please try again.');
+            setError('Login failed. Invalid username or password.');
             console.error('Login error:', err);
         } finally {
             setLoading(false);

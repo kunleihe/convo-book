@@ -12,21 +12,30 @@ export const AuthProvider = ({ children }) => {
     // Check if user is logged in on app start
     useEffect(() => {
         const token = localStorage.getItem('authToken');
+        const savedUsername = localStorage.getItem('username');
+        
         if (token) {
             // Optionally verify token with backend
             setIsAuthenticated(true);
-            // You can decode JWT to get user info if needed
+            if (savedUsername) {
+                setUser({ username: savedUsername });
+            }
         }
         setLoading(false);
     }, []);
 
-    const login = (token) => {
+    const login = (token, username) => {
         localStorage.setItem('authToken', token);
+        if (username) {
+            localStorage.setItem('username', username);
+            setUser({ username });
+        }
         setIsAuthenticated(true);
     };
 
     const logout = () => {
         localStorage.removeItem('authToken');
+        localStorage.removeItem('username');
         setIsAuthenticated(false);
         setUser(null);
     };
