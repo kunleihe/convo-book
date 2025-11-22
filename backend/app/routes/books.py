@@ -1,11 +1,18 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict, Any
+import os
+import yaml
+from pathlib import Path
 from ..s3_client import s3_client
 
 books_router = APIRouter()
 
 # 书本在 S3 上的根目录前缀
 BOOKS_PREFIX = "books/"
+
+# Local storage path - 指向 backend/data/books
+BASE_DIR = Path(__file__).parent.parent.parent
+LOCAL_BOOKS_DIR = BASE_DIR / "data" / "books"
 
 def process_urls_in_data(data: Any) -> Any:
     """
@@ -29,6 +36,8 @@ def process_urls_in_data(data: Any) -> Any:
             s3_key = f"{BOOKS_PREFIX}{relative_path}"
             
             # 生成预签名 URL
+            # 注意：generate_download_url 不检查文件是否存在于 S3，直接生成签名
+            # 这样即便是私有 Bucket，前端也能在有效期内访问
             url = s3_client.generate_download_url(s3_key)
             return url if url else data
         return data
@@ -37,73 +46,70 @@ def process_urls_in_data(data: Any) -> Any:
 
 def scan_available_books() -> List[str]:
     """
-    扫描 S3 'books/' 目录下的子文件夹，返回书本 ID 列表。
+    扫描本地 'backend/data/books/' 目录下的子文件夹，返回书本 ID 列表。
     """
     try:
-        # 列出 books/ 下的对象，使用 '/' 作为分隔符来模拟目录
-        response = s3_client.s3_client.list_objects_v2(
-            Bucket=s3_client.bucket_name,
-            Prefix=BOOKS_PREFIX,
-            Delimiter='/'
-        )
-        
-        book_ids = []
-        # CommonPrefixes 包含了子目录
-        if 'CommonPrefixes' in response:
-            for prefix in response['CommonPrefixes']:
-                # prefix['Prefix'] 类似 'books/speed-racer/'
-                # 我们需要提取 'speed-racer'
-                dir_name = prefix['Prefix'].rstrip('/').split('/')[-1]
-                if dir_name:
-                    book_ids.append(dir_name)
+        if not LOCAL_BOOKS_DIR.exists():
+            print(f"Local books directory not found: {LOCAL_BOOKS_DIR}")
+            return []
+            
+        book_ids = [
+            d.name for d in LOCAL_BOOKS_DIR.iterdir() 
+            if d.is_dir() and not d.name.startswith('.')
+        ]
         
         return sorted(book_ids)
     except Exception as e:
-        print(f"Error scanning books: {e}")
+        print(f"Error scanning books locally: {e}")
         return []
+
+def read_local_yaml(file_path: Path):
+    try:
+        if not file_path.exists():
+            return None
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f)
+    except Exception as e:
+        print(f"Error reading local YAML {file_path}: {e}")
+        return None
 
 def load_book_data(book_id: str) -> Dict:
     """
-    从 S3 加载书本数据：
+    从本地文件系统加载书本数据：
     1. 读取 metadata.yaml
     2. 扫描 pages/ 目录并读取所有 pageX.yaml
     3. 替换所有资源 URL 为 S3 链接
     """
     try:
-        book_root = f"{BOOKS_PREFIX}{book_id}/"
+        book_dir = LOCAL_BOOKS_DIR / book_id
         
         # 1. 读取 Metadata
-        metadata_key = f"{book_root}metadata.yaml"
-        metadata = s3_client.read_yaml(metadata_key)
+        metadata_path = book_dir / "metadata.yaml"
+        metadata = read_local_yaml(metadata_path)
         
         if not metadata:
-            raise HTTPException(status_code=404, detail=f"Book metadata not found for '{book_id}'")
+            raise HTTPException(status_code=404, detail=f"Book metadata not found for '{book_id}' locally")
             
         # 2. 扫描并读取 Pages
-        pages_prefix = f"{book_root}pages/"
-        response = s3_client.s3_client.list_objects_v2(
-            Bucket=s3_client.bucket_name,
-            Prefix=pages_prefix
-        )
-        
+        pages_dir = book_dir / "pages"
         pages = []
-        if 'Contents' in response:
-            # 过滤出 yaml 文件
-            page_files = [
-                obj['Key'] for obj in response['Contents'] 
-                if obj['Key'].endswith(('.yaml', '.yml')) and obj['Key'] != pages_prefix
-            ]
+        
+        if pages_dir.exists():
+            # 过滤出 yaml 文件，确保按文件名排序 (page01, page02...)
+            page_files = sorted([
+                f for f in pages_dir.iterdir() 
+                if f.is_file() and f.suffix in ('.yaml', '.yml')
+            ])
             
-            # 按文件名排序 (page01, page02...)
-            for page_key in sorted(page_files):
-                page_data = s3_client.read_yaml(page_key)
+            for page_file in page_files:
+                page_data = read_local_yaml(page_file)
                 if page_data:
                     pages.append(page_data)
         
         # 组合数据
         metadata['pages'] = pages
         
-        # 3. 处理 URL
+        # 3. 处理 URL (依然转换为 S3 链接)
         processed_data = process_urls_in_data(metadata)
         
         return processed_data
@@ -123,11 +129,9 @@ async def get_all_books():
         
         for book_id in book_ids:
             try:
-                # 只读取 metadata.yaml，不读 pages 以提高速度
-                # 优化：如果我们能不读 pages 最好，但现在的 process_urls 需要数据结构
-                # 这里我们只读 metadata.yaml
-                metadata_key = f"{BOOKS_PREFIX}{book_id}/metadata.yaml"
-                book_data = s3_client.read_yaml(metadata_key)
+                # 读取本地 metadata.yaml
+                metadata_path = LOCAL_BOOKS_DIR / book_id / "metadata.yaml"
+                book_data = read_local_yaml(metadata_path)
                 
                 if book_data:
                     # 同样需要处理封面图片的 URL
@@ -157,8 +161,9 @@ async def get_book_by_id(book_id: str):
 async def get_book_metadata(book_id: str):
     """仅获取特定书本的元数据"""
     try:
-        metadata_key = f"{BOOKS_PREFIX}{book_id}/metadata.yaml"
-        book_data = s3_client.read_yaml(metadata_key)
+        metadata_path = LOCAL_BOOKS_DIR / book_id / "metadata.yaml"
+        book_data = read_local_yaml(metadata_path)
+        
         if not book_data:
             raise HTTPException(status_code=404, detail="Book not found")
             
