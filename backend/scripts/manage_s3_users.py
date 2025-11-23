@@ -8,7 +8,10 @@ import os
 # We need to go up one level to 'backend' to import 'app'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app.s3_client import s3_client, S3_BUCKET_NAME
+from app.s3_client import s3_client
+from app.config import settings
+
+S3_BUCKET_NAME = settings.S3_BUCKET_NAME
 
 def sync_users_to_s3(csv_file_path):
     """

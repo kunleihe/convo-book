@@ -16,7 +16,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # For the import to work without AWS creds, we patch boto3.client
 with patch('boto3.client'):
-    from app.s3_client import s3_client, S3_BUCKET_NAME
+    from app.s3_client import s3_client
+    from app.config import settings
+
+S3_BUCKET_NAME = settings.S3_BUCKET_NAME
 
 class TestS3Client(unittest.TestCase):
     

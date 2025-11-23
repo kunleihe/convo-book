@@ -32,7 +32,7 @@ async def generate_upload_url(request: UploadRequest):
     """
     Generate a pre-signed S3 URL for file upload with structured path.
     
-    Path Format (Kebab Case):
+    Path Format:
     user-data/{username}/{book-id}/page-{num}/media/{stage}-{timestamp}-{uuid}.{ext}
     """
     try:
@@ -43,10 +43,9 @@ async def generate_upload_url(request: UploadRequest):
         # Extract extension from original filename, default to webm
         extension = request.filename.split('.')[-1] if '.' in request.filename else "webm"
         
-        # Ensure stage is kebab-case friendly (e.g. "read_aloud" -> "read-aloud")
         safe_stage = request.stage.replace("_", "-").lower()
         
-        # 2. Construct S3 Key (Enforcing Kebab Case)
+        # 2. Construct S3 Key
         # Path: user-data/{user}/{book}/page-{num}/media/{filename}
         s3_key = (
             f"user-data/{request.username}/{request.book_id}/"

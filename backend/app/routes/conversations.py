@@ -38,7 +38,6 @@ async def store_conversation(conversation: ConversationCreate):
         unique_id = str(uuid.uuid4())[:6]
         
         # 2. Construct S3 Key
-        # Using Kebab-case for directory structure as agreed
         s3_key = (
             f"user-data/{conversation.username}/{conversation.book_id}/"
             f"page-{conversation.page_number:02d}/conversations/"
