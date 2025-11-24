@@ -30,7 +30,6 @@ class Settings(BaseSettings):
     OPENAI_TRANSCRIPTION_WS_URL: str = "wss://api.openai.com/v1/realtime?intent=transcription"
     
     # Database Configuration
-    DATABASE_URL: Optional[str] = None
     
     # JWT Configuration
     JWT_SECRET_KEY: Optional[str] = None
@@ -47,26 +46,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: Optional[str] = None
 
     model_config = SettingsConfigDict(extra="ignore")
-
-    @computed_field
-    def SQLALCHEMY_DATABASE_URL(self) -> str:
-        """Get database URL based on environment"""
-        if self.ENVIRONMENT == "production":
-            # Will use RDS for production later
-            if self.DATABASE_URL:
-                return self.DATABASE_URL
-            else:
-                # Fallback to SQLite for now (will be migrated to RDS later)
-                return "sqlite:///./app_prod.db"
-        elif self.ENVIRONMENT == "staging":
-            # Use RDS for staging
-            if not self.DATABASE_URL:
-                raise ValueError("DATABASE_URL environment variable must be set for staging environment")
-            return self.DATABASE_URL
-        else:
-            # Keep SQLite for local development
-            return "sqlite:///./app_dev.db"
-
+    
     @computed_field
     def CORS_ORIGINS(self) -> List[str]:
         """Get CORS allowed origins based on environment"""
@@ -96,8 +76,8 @@ class Settings(BaseSettings):
         """Validate environment and handle dynamic defaults"""
         # Validation logic
         required_vars = {
-            'staging': ['API_KEY', 'DATABASE_URL', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET_NAME'],
-            'production': ['API_KEY', 'DATABASE_URL', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET_NAME']
+            'staging': ['API_KEY', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET_NAME'],
+            'production': ['API_KEY', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET_NAME']
         }
         
         # Check required vars for current environment
@@ -109,7 +89,6 @@ class Settings(BaseSettings):
         # Map concept to attribute
         var_map = {
             'API_KEY': self.API_KEY,
-            'DATABASE_URL': self.DATABASE_URL,
             'AWS_ACCESS_KEY_ID': self.AWS_ACCESS_KEY_ID,
             'AWS_SECRET_ACCESS_KEY': self.AWS_SECRET_ACCESS_KEY,
             'AWS_REGION': self.AWS_REGION,
@@ -170,7 +149,3 @@ TRANSCRIPTION_CONFIG = {
 # Instantiate settings
 settings = Settings()
 
-# Print environment info for debugging (optional, kept for consistency with old behavior)
-print(f"🔧 Environment: {settings.ENVIRONMENT}")
-print(f"📂 Config file: {env_path}")
-print(f"🌐 CORS Origins: {settings.CORS_ORIGINS}")

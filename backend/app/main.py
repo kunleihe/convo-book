@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 # from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,9 +9,22 @@ from app.routes.prompts import prompts_router
 from app.routes.auth import router as auth_router
 from app.routes.conversations import router as conversations_router
 from app.routes.uploads import router as uploads_router
-from app.config import settings
+from app.config import settings, env_path
 
-app = FastAPI(title="Convo Book API", description="Real-time communication hub")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup logic
+    print(f"🔧 Environment: {settings.ENVIRONMENT}")
+    print(f"📂 Config file: {env_path}")
+    print(f"🌐 CORS Origins: {settings.CORS_ORIGINS}")
+    yield
+    # Shutdown logic
+
+app = FastAPI(
+    title="Convo Book API", 
+    description="Real-time communication hub",
+    lifespan=lifespan
+)
 
 # Add CORS middleware - dynamically configured based on environment
 app.add_middleware(

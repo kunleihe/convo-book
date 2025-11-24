@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Production server launcher for FastAPI backend
-echo "🚀 Starting FastAPI Production Server..."
+echo "🚀 Starting FastAPI Development Server..."
 
 # Set default environment if not provided
-ENVIRONMENT=${ENVIRONMENT:-production}
+ENVIRONMENT=${ENVIRONMENT:-development}
 echo "🔧 Environment: $ENVIRONMENT"
 
 # Navigate to the backend directory
