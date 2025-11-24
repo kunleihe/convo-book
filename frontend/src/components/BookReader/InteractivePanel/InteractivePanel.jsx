@@ -7,7 +7,15 @@ import userAvatarImage from '../../../assets/user-avatar.png';
 import { fetchAudioWithRetry, getCachedAudio, cacheAudio } from '../../../utils/audioCache';
 import './InteractivePanel.css';
 
-const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, questionIndex, totalQuestions }) => {
+const InteractivePanel = ({
+    question,
+    onAudioPlayingChange,
+    bookId,
+    pageNumber,
+    questionIndex,
+    totalQuestions,
+    sharedStream = null // New prop for stream reuse
+}) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
 
     // Voice chat hooks
@@ -303,6 +311,7 @@ const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, 
                 <div className="voice-controls">
                     <VoiceButton
                         disabled={!canUseVoiceButton()}
+                        sharedStream={sharedStream} // Pass the shared stream to VoiceButton
                         onAudioRecorded={(pcm16Data) => {
                             pageVoiceChat.sendAudioData(pcm16Data);
                         }}
@@ -331,4 +340,4 @@ const InteractivePanel = ({ question, onAudioPlayingChange, bookId, pageNumber, 
     );
 };
 
-export default InteractivePanel; 
+export default InteractivePanel;

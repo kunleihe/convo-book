@@ -9,7 +9,8 @@ const VoiceButton = ({
     onAudioRecorded,
     onAudioChunk,
     onRecordingComplete,
-    onRecordingStart
+    onRecordingStart,
+    sharedStream = null // New prop
 }) => {
     // Audio recording functionality
     const {
@@ -39,7 +40,8 @@ const VoiceButton = ({
             if (onAudioChunk) {
                 onAudioChunk(pcm16Data);
             }
-        }
+        },
+        sharedStream // Pass external stream to hook
     );
 
     const handleClick = async () => {
@@ -83,4 +85,4 @@ const VoiceButton = ({
     );
 };
 
-export default VoiceButton; 
+export default VoiceButton;

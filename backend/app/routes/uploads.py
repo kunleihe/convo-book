@@ -47,10 +47,11 @@ async def generate_upload_url(request: UploadRequest):
         
         # 2. Construct S3 Key
         # Path: user-data/{user}/{book}/page-{num}/media/{filename}
+        # Format: {timestamp}-{stage}-{uuid}.{ext}
         s3_key = (
             f"user-data/{request.username}/{request.book_id}/"
             f"page-{request.page_number:02d}/media/"
-            f"{safe_stage}-{timestamp}-{unique_id}.{extension}"
+            f"{timestamp}-{safe_stage}-{unique_id}.{extension}"
         )
         
         # 3. Generate pre-signed URL
