@@ -122,7 +122,7 @@ def load_book_data(book_id: str) -> Dict:
 
 @books_router.get("/books")
 async def get_all_books():
-    """获取所有可用书本的列表 (仅元数据)"""
+    """Get metadata for available books for libary display"""
     try:
         book_ids = scan_available_books()
         books_metadata = []
@@ -153,13 +153,13 @@ async def get_all_books():
 
 @books_router.get("/books/{book_id}")
 async def get_book_by_id(book_id: str):
-    """获取完整的书本数据 (包含所有页面)"""
+    """Get complete book data (including all pages)"""
     book_data = load_book_data(book_id)
     return book_data
 
 @books_router.get("/books/{book_id}/metadata")
 async def get_book_metadata(book_id: str):
-    """仅获取特定书本的元数据"""
+    """Get book metadata"""
     try:
         metadata_path = LOCAL_BOOKS_DIR / book_id / "metadata.yaml"
         book_data = read_local_yaml(metadata_path)
