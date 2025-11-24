@@ -34,7 +34,7 @@ const BookReader = () => {
         loadCurrentBook();
         // Initialize global stream when component mounts (or when bookId changes)
         initializeGlobalStream();
-        
+
         return () => {
             // Cleanup stream when leaving the reader
             if (globalStream) {
@@ -67,7 +67,7 @@ const BookReader = () => {
         // Cleanup function handles component unmount or update
         return () => {
             if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-                 mediaRecorderRef.current.stop();
+                mediaRecorderRef.current.stop();
             }
         };
     }, [bookId, pageNumber, globalStream]);
@@ -108,8 +108,8 @@ const BookReader = () => {
         try {
             console.log('[BookReader] Requesting global media stream (Audio + Video)');
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { 
-                    width: { ideal: 640 }, 
+                video: {
+                    width: { ideal: 640 },
                     height: { ideal: 480 },
                     frameRate: { ideal: 15 } // Low frame rate for reading trace is enough
                 },
@@ -129,15 +129,25 @@ const BookReader = () => {
 
     const startPageRecording = (currentBookId, currentPageNum) => {
         try {
+            // Safety check: verify stream tracks
+            const videoTracks = globalStream.getVideoTracks();
+            const audioTracks = globalStream.getAudioTracks();
+            console.log(`[BookReader] Starting recording. Stream tracks - Video: ${videoTracks.length}, Audio: ${audioTracks.length}`);
+
+            if (videoTracks.length > 0) {
+                console.log(`[BookReader] Video track label: ${videoTracks[0].label}, Enabled: ${videoTracks[0].enabled}, Muted: ${videoTracks[0].muted}, ReadyState: ${videoTracks[0].readyState}`);
+            }
+
             recordedChunksRef.current = [];
             const options = { mimeType: 'video/webm;codecs=vp8,opus' };
-            
+
             if (!MediaRecorder.isTypeSupported(options.mimeType)) {
                 console.warn(`[BookReader] ${options.mimeType} not supported, falling back to default`);
                 delete options.mimeType;
             }
 
             const recorder = new MediaRecorder(globalStream, options);
+            console.log(`[BookReader] MediaRecorder created. Actual resolved mimeType: ${recorder.mimeType}`);
 
             recorder.ondataavailable = (event) => {
                 if (event.data && event.data.size > 0) {
@@ -154,7 +164,9 @@ const BookReader = () => {
                 }
             };
 
-            recorder.start(2000); // Collect chunks every 2 seconds
+            // Use default timeslice (no argument) to let browser optimize blob creation for a single file
+            // This ensures better container integrity (headers/keyframes) compared to small slices
+            recorder.start();
             mediaRecorderRef.current = recorder;
             console.log(`[BookReader] Started recording for page ${currentPageNum}`);
 
@@ -171,11 +183,11 @@ const BookReader = () => {
             const uploadRes = await apiRequest(`${API_BASE_URL}/api/upload-url`, {
                 method: 'POST',
                 body: JSON.stringify({
-                    filename: `reading_trace.webm`,
+                    filename: `reading.webm`,
                     content_type: 'video/webm',
                     book_id: bId,
                     page_number: parseInt(pNum, 10),
-                    stage: 'reading_trace',
+                    stage: 'reading',
                     username: username
                 })
             });

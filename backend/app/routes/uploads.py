@@ -33,7 +33,7 @@ async def generate_upload_url(request: UploadRequest):
     Generate a pre-signed S3 URL for file upload with structured path.
     
     Path Format:
-    user-data/{username}/{book-id}/page-{num}/media/{stage}-{timestamp}-{uuid}.{ext}
+    user-data/{username}/{book-id}/page-{num}/media/{timestamp}-{stage}-{uuid}.{ext}
     """
     try:
         # 1. Prepare components for the path
@@ -42,16 +42,14 @@ async def generate_upload_url(request: UploadRequest):
         
         # Extract extension from original filename, default to webm
         extension = request.filename.split('.')[-1] if '.' in request.filename else "webm"
-        
-        safe_stage = request.stage.replace("_", "-").lower()
-        
+    
         # 2. Construct S3 Key
-        # Path: user-data/{user}/{book}/page-{num}/media/{filename}
-        # Format: {timestamp}-{stage}-{uuid}.{ext}
+        # Path: user-data/{user}/{book}/page-{num}/media/{timestamp}-{stage}-{uuid}.{ext}
+        # Example: .../media/20251123-225957-reading-f489eb.webm
         s3_key = (
             f"user-data/{request.username}/{request.book_id}/"
             f"page-{request.page_number:02d}/media/"
-            f"{timestamp}-{safe_stage}-{unique_id}.{extension}"
+            f"{timestamp}-{request.stage}-{unique_id}.{extension}"
         )
         
         # 3. Generate pre-signed URL
