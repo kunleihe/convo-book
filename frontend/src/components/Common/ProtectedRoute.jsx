@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth.jsx';
 import Login from '../Login/Login';
 
 const ProtectedRoute = ({ children }) => {
     const { isAuthenticated, loading } = useAuth();
+    const navigate = useNavigate();
 
     if (loading) {
         return (
@@ -16,7 +18,8 @@ const ProtectedRoute = ({ children }) => {
     }
 
     if (!isAuthenticated) {
-        return <Login onLoginSuccess={() => window.location.reload()} />;
+        // Redirect to device check after successful login
+        return <Login onLoginSuccess={() => navigate('/device-check')} />;
     }
 
     return children;

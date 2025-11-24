@@ -1,13 +1,24 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import NavigationBar from './components/Common/NavigationBar';
 import BookLibrary from './components/BookLibrary/BookLibrary';
 import BookReader from './components/BookReader/BookReader';
 import VoiceClient from './components/VoiceClient/VoiceClient';
+import DeviceCheck from './components/Common/DeviceCheck';
 import ProtectedRoute from './components/Common/ProtectedRoute';
 import { useAuth } from './hooks/useAuth.jsx';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './App.css';
+
+// Component to conditionally render NavigationBar
+function ConditionalNavBar() {
+  const location = useLocation();
+  // Don't show nav bar on device check page
+  if (location.pathname === '/device-check') {
+    return null;
+  }
+  return <NavigationBar />;
+}
 
 function App() {
   const { isAuthenticated, loading } = useAuth();
@@ -36,7 +47,7 @@ function App() {
   return (
     <div className="App">
       <BrowserRouter>
-        {isAuthenticated && <NavigationBar />}
+        {isAuthenticated && <ConditionalNavBar />}
         <main className="main-content">
           <Routes>
             <Route
@@ -44,6 +55,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BookLibrary />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/device-check"
+              element={
+                <ProtectedRoute>
+                  <DeviceCheck />
                 </ProtectedRoute>
               }
             />

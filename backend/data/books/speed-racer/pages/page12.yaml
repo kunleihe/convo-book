@@ -1,5 +1,5 @@
 pageNumber: 12
-imageUrl: /speed_racer/images/page12.png
+imageUrl: /speed-racer/images/page12.png
 narrationAudioUrl: https://example.com/books/speed-racer/narration8.mp3
 
 storyText: |
@@ -14,7 +14,7 @@ questions:
       Let's think about what we know and make a prediction! 
       When you make a prediction, you say what you think will happen. 
       Do you predict that Elinor's car will go as fast as Camila's car? Why or why not?
-    audioUrl: /speed_racer/audios/questions/page12_q1.mp3
+    audioUrl: /speed-racer/audios/questions/page12_q1.mp3
     answerText: No. Because the color of the car doesn't change how fast it moves.
     follow-up:
     - Does the color of a car change how fast it goes?

@@ -85,12 +85,10 @@ export const usePageVoiceChat = () => {
         // Process in chunks to avoid "Maximum call stack size exceeded" error
         const chunkSize = 8192; // Safe chunk size
         let result = '';
-
         for (let i = 0; i < uint8Array.length; i += chunkSize) {
             const chunk = uint8Array.slice(i, i + chunkSize);
             result += String.fromCharCode.apply(null, chunk);
         }
-
         return btoa(result);
     }, []);
 
@@ -132,7 +130,6 @@ export const usePageVoiceChat = () => {
     // Handle audio delta from OpenAI response
     const handleAudioDelta = useCallback((base64Audio) => {
         if (!base64Audio) return;
-
         try {
             const uint8Array = base64ToUint8Array(base64Audio);
             const pcm16Array = new Int16Array(uint8Array.buffer);
@@ -180,7 +177,6 @@ export const usePageVoiceChat = () => {
 
             source.start(startTime);
             nextPlayTimeRef.current = startTime + audioBuffer.duration;
-
         } catch (error) {
             console.error('Audio streaming error:', error);
         }
@@ -193,9 +189,10 @@ export const usePageVoiceChat = () => {
     }, []);
 
     const sendFormattedInitialMessage = useCallback(async (childResponse) => {
+        // Check if we have valid context - if not, the session might have ended or disconnected
         if (!currentQuestionRef.current || !currentBookIdRef.current || !currentPageNumberRef.current) {
-            console.error('[PageVoiceChat] Missing context for formatting message');
-            setError('Missing context for conversation');
+            console.warn('[PageVoiceChat] Missing context for formatting message - session may have ended');
+            // Fail silently as this usually happens during page transitions/unmount
             return false;
         }
 
@@ -234,6 +231,7 @@ export const usePageVoiceChat = () => {
                     content: [{ type: "input_text", text: formatted_message }]
                 }
             };
+
             websocketRef.current.send(JSON.stringify(messageItem));
 
             // Create response to get AI reply
@@ -241,11 +239,10 @@ export const usePageVoiceChat = () => {
                 type: "response.create",
                 response: { modalities: ["text", "audio"] }
             };
-            websocketRef.current.send(JSON.stringify(responseMessage));
 
+            websocketRef.current.send(JSON.stringify(responseMessage));
             console.log('[PageVoiceChat] Formatted message sent, AI response requested');
             return true;
-
         } catch (error) {
             console.error('[PageVoiceChat] Failed to format and send initial message:', error);
             setError('Failed to process conversation');
@@ -259,16 +256,13 @@ export const usePageVoiceChat = () => {
     const handleWebSocketMessage = useCallback((event) => {
         try {
             const data = JSON.parse(event.data);
-
             switch (data.type) {
                 case 'session.created':
                     console.log('[PageVoiceChat] Session created successfully');
                     break;
-
                 case 'session.updated':
                     console.log('[PageVoiceChat] Session updated successfully');
                     break;
-
                 case 'response.created':
                     console.log('[PageVoiceChat] AI is responding...');
                     // Reset audio buffer and streaming state for new response
@@ -329,7 +323,6 @@ export const usePageVoiceChat = () => {
                 case 'conversation.item.input_audio_transcription.completed':
                     if (data.transcript) {
                         console.log('[PageVoiceChat] Child transcription completed:', data.transcript);
-
                         // Add child's message to conversation display
                         addConversationMessage(data.transcript, true);
 
@@ -340,6 +333,7 @@ export const usePageVoiceChat = () => {
                                 pageNumber: currentPageNumberRef.current,
                                 questionId: currentQuestionRef.current?.id
                             });
+
                             storeConversationMessage(
                                 data.transcript,
                                 'user',
@@ -358,7 +352,6 @@ export const usePageVoiceChat = () => {
                         } else {
                             // This is a follow-up message - send raw transcription and let session handle history
                             console.log('[PageVoiceChat] Sending follow-up message:', data.transcript);
-
                             const messageItem = {
                                 type: "conversation.item.create",
                                 item: {
@@ -375,7 +368,6 @@ export const usePageVoiceChat = () => {
                                 response: { modalities: ["text", "audio"] }
                             };
                             websocketRef.current.send(JSON.stringify(responseMessage));
-
                             console.log('[PageVoiceChat] Follow-up message sent, AI response requested');
                         }
                     }
@@ -393,6 +385,7 @@ export const usePageVoiceChat = () => {
                                 pageNumber: currentPageNumberRef.current,
                                 questionId: currentQuestionRef.current?.id
                             });
+
                             storeConversationMessage(
                                 currentTranscriptRef.current,
                                 'ai',
@@ -401,10 +394,8 @@ export const usePageVoiceChat = () => {
                                 currentQuestionRef.current?.id
                             );
                         }
-
                         currentTranscriptRef.current = '';
                     }
-
                     // Clear streaming transcript state but keep isAiSpeaking true until audio finishes
                     setCurrentStreamingTranscript('');
                     setStreamingResponseId(null);
@@ -429,7 +420,6 @@ export const usePageVoiceChat = () => {
             console.log('[PageVoiceChat] Already connected or connecting');
             return;
         }
-
         setIsLoading(true);
         setError(null);
 
@@ -456,7 +446,12 @@ export const usePageVoiceChat = () => {
             // Create WebSocket connection
             const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
             const wsBase = API_BASE_URL.replace(/^https?:/, wsProtocol + ':');
-            websocketRef.current = new WebSocket(`${wsBase}/realtime`);
+
+            // Add token to URL query parameters for authentication
+            const token = localStorage.getItem('authToken');
+            const wsUrl = `${wsBase}/realtime${token ? `?token=${token}` : ''}`;
+
+            websocketRef.current = new WebSocket(wsUrl);
 
             websocketRef.current.onopen = () => {
                 console.log('[PageVoiceChat] Connected to server');
@@ -480,7 +475,6 @@ export const usePageVoiceChat = () => {
                                 turn_detection: null
                             }
                         };
-
                         websocketRef.current.send(JSON.stringify(sessionUpdateMessage));
                         console.log('[PageVoiceChat] Session configured with question-specific prompt:', promptData.substring(0, 100) + '...');
                     }
@@ -500,7 +494,6 @@ export const usePageVoiceChat = () => {
                 setIsConnected(false);
                 setIsLoading(false);
             };
-
         } catch (error) {
             console.error('[PageVoiceChat] Connection error:', error);
             setError(error.message);
@@ -508,15 +501,12 @@ export const usePageVoiceChat = () => {
         }
     }, [isConnected, isLoading, handleWebSocketMessage]);
 
-
-
     const disconnect = useCallback(() => {
         if (websocketRef.current) {
             console.log('[PageVoiceChat] Disconnecting...');
             websocketRef.current.close();
             websocketRef.current = null;
         }
-
         // Clear state
         setIsConnected(false);
         setIsLoading(false);
@@ -543,12 +533,10 @@ export const usePageVoiceChat = () => {
             console.error('[PageVoiceChat] WebSocket not initialized');
             return false;
         }
-
         if (websocketRef.current.readyState !== WebSocket.OPEN) {
             console.error('[PageVoiceChat] WebSocket not ready');
             return false;
         }
-
         if (!pcm16Data || pcm16Data.length === 0) {
             console.error('[PageVoiceChat] No audio data to send');
             return false;
@@ -576,12 +564,10 @@ export const usePageVoiceChat = () => {
 
             websocketRef.current.send(JSON.stringify(conversationItemMessage));
             userInputTimeRef.current = Date.now();
-
             console.log('[PageVoiceChat] Audio sent for transcription');
 
             // Don't create response yet - wait for transcription completion
             // The response will be created after we format and send the initial message
-
             return true;
         } catch (error) {
             console.error('[PageVoiceChat] Error sending audio:', error);
@@ -593,7 +579,6 @@ export const usePageVoiceChat = () => {
     const clearConversation = useCallback(() => {
         setConversationMessages([]);
         setError(null);
-
         // Clear streaming state
         setIsAiSpeaking(false);
         setCurrentStreamingTranscript('');
@@ -633,7 +618,6 @@ export const usePageVoiceChat = () => {
             console.error('[PageVoiceChat] WebSocket not initialized');
             return false;
         }
-
         if (websocketRef.current.readyState !== WebSocket.OPEN) {
             console.error('[PageVoiceChat] WebSocket not ready');
             return false;
@@ -650,6 +634,7 @@ export const usePageVoiceChat = () => {
                     pageNumber: currentPageNumberRef.current,
                     questionId: currentQuestionRef.current?.id
                 });
+
                 storeConversationMessage(
                     '<no speech detected>',
                     'user',
@@ -673,7 +658,6 @@ export const usePageVoiceChat = () => {
             } else {
                 // This is a follow-up message - send raw text and let session handle history
                 console.log('[PageVoiceChat] Sending follow-up silence message');
-
                 const messageItem = {
                     type: "conversation.item.create",
                     item: {
@@ -690,10 +674,8 @@ export const usePageVoiceChat = () => {
                     response: { modalities: ["text", "audio"] }
                 };
                 websocketRef.current.send(JSON.stringify(responseMessage));
-
                 console.log('[PageVoiceChat] Follow-up silence message sent, AI response requested');
             }
-
             return true;
         } catch (error) {
             console.error('[PageVoiceChat] Error sending silence message:', error);
@@ -724,4 +706,4 @@ export const usePageVoiceChat = () => {
         websocketRef,
         handleWebSocketMessage,
     };
-}; 
+};

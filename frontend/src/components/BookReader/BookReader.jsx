@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Alert, Spinner, Button } from 'react-bootstrap';
 import { loadBookData, getPageData } from '../../utils/bookDataLoader';
 import { saveReadingProgress, clearReadingProgress } from '../../utils/storageUtils';
+import { apiRequest } from '../../utils/api';
 import InteractivePanel from './InteractivePanel/InteractivePanel';
 import './BookReader.css';
 
@@ -24,8 +25,23 @@ const BookReader = () => {
     const [chatMessages, setChatMessages] = useState([]);
     const [isQuestionAudioPlaying, setIsQuestionAudioPlaying] = useState(false);
 
+    // Global Media Stream for Page Recording & Chat
+    const [globalStream, setGlobalStream] = useState(null);
+    const mediaRecorderRef = useRef(null);
+    const recordedChunksRef = useRef([]);
+
     useEffect(() => {
         loadCurrentBook();
+        // Initialize global stream when component mounts (or when bookId changes)
+        initializeGlobalStream();
+
+        return () => {
+            // Cleanup stream when leaving the reader
+            if (globalStream) {
+                console.log('[BookReader] Stopping global stream tracks');
+                globalStream.getTracks().forEach(track => track.stop());
+            }
+        };
     }, [bookId]);
 
     useEffect(() => {
@@ -33,6 +49,28 @@ const BookReader = () => {
             loadCurrentPage();
         }
     }, [bookData, pageNumber]);
+
+    // Page Recording Logic: Start/Stop on page change
+    useEffect(() => {
+        if (!globalStream || !bookId || !pageNumber) return;
+
+        // 1. Stop previous recording if active
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            console.log('[BookReader] Stopping recording for previous page');
+            mediaRecorderRef.current.stop();
+            // Note: upload logic is handled in onstop callback
+        }
+
+        // 2. Start new recording for current page
+        startPageRecording(bookId, pageNumber);
+
+        // Cleanup function handles component unmount or update
+        return () => {
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+                mediaRecorderRef.current.stop();
+            }
+        };
+    }, [bookId, pageNumber, globalStream]);
 
     // Keyboard navigation
     useEffect(() => {
@@ -65,6 +103,115 @@ const BookReader = () => {
             }
         }
     }, [showChatPanel, bookData, currentPage, pageNumber]);
+
+    const initializeGlobalStream = async () => {
+        try {
+            console.log('[BookReader] Requesting global media stream (Audio + Video)');
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    frameRate: { ideal: 15 } // Low frame rate for reading trace is enough
+                },
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    sampleRate: 24000,
+                    channelCount: 1
+                }
+            });
+            setGlobalStream(stream);
+        } catch (err) {
+            console.error('[BookReader] Failed to initialize media stream:', err);
+            // Non-blocking error: reading can continue without recording
+        }
+    };
+
+    const startPageRecording = (currentBookId, currentPageNum) => {
+        try {
+            // Safety check: verify stream tracks
+            const videoTracks = globalStream.getVideoTracks();
+            const audioTracks = globalStream.getAudioTracks();
+            console.log(`[BookReader] Starting recording. Stream tracks - Video: ${videoTracks.length}, Audio: ${audioTracks.length}`);
+
+            if (videoTracks.length > 0) {
+                console.log(`[BookReader] Video track label: ${videoTracks[0].label}, Enabled: ${videoTracks[0].enabled}, Muted: ${videoTracks[0].muted}, ReadyState: ${videoTracks[0].readyState}`);
+            }
+
+            recordedChunksRef.current = [];
+            const options = { mimeType: 'video/webm;codecs=vp8,opus' };
+
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                console.warn(`[BookReader] ${options.mimeType} not supported, falling back to default`);
+                delete options.mimeType;
+            }
+
+            const recorder = new MediaRecorder(globalStream, options);
+            console.log(`[BookReader] MediaRecorder created. Actual resolved mimeType: ${recorder.mimeType}`);
+
+            recorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    recordedChunksRef.current.push(event.data);
+                }
+            };
+
+            recorder.onstop = async () => {
+                const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+                console.log(`[BookReader] Page recording stopped. Size: ${blob.size} bytes`);
+                if (blob.size > 0) {
+                    // Capture current context for the async upload
+                    uploadPageRecording(blob, currentBookId, currentPageNum);
+                }
+            };
+
+            // Use default timeslice (no argument) to let browser optimize blob creation for a single file
+            // This ensures better container integrity (headers/keyframes) compared to small slices
+            recorder.start();
+            mediaRecorderRef.current = recorder;
+            console.log(`[BookReader] Started recording for page ${currentPageNum}`);
+
+        } catch (e) {
+            console.error('[BookReader] Failed to start MediaRecorder:', e);
+        }
+    };
+
+    const uploadPageRecording = async (videoBlob, bId, pNum) => {
+        try {
+            const username = localStorage.getItem('username') || 'guest';
+            // 1. Get Upload URL
+            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+            const uploadRes = await apiRequest(`${API_BASE_URL}/api/upload-url`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    filename: `reading.webm`,
+                    content_type: 'video/webm',
+                    book_id: bId,
+                    page_number: parseInt(pNum, 10),
+                    stage: 'reading',
+                    username: username
+                })
+            });
+
+            if (!uploadRes.ok) throw new Error('Failed to get upload URL');
+            const { upload_url } = await uploadRes.json();
+
+            // 2. Upload to S3
+            const s3Res = await fetch(upload_url, {
+                method: 'PUT',
+                body: videoBlob,
+                headers: { 'Content-Type': 'video/webm' }
+            });
+
+            if (s3Res.ok) {
+                console.log(`[BookReader] Uploaded reading trace for page ${pNum}`);
+            } else {
+                console.error(`[BookReader] S3 Upload failed: ${s3Res.status}`);
+            }
+
+        } catch (e) {
+            console.error('[BookReader] Error uploading page recording:', e);
+        }
+    };
 
     const loadCurrentBook = async () => {
         try {
@@ -311,10 +458,11 @@ const BookReader = () => {
                     pageNumber={parseInt(pageNumber, 10)}
                     questionIndex={currentQuestionIndex}
                     totalQuestions={currentQuestions.length}
+                    sharedStream={globalStream} // Pass the global stream to share
                 />
             )}
         </div>
     );
 };
 
-export default BookReader; 
+export default BookReader;

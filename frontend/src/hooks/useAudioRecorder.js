@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { detectSilence } from '../utils/silenceDetection';
 
-export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
+export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null, externalStream = null) => {
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState('00:00');
     const [lastRecordingUrl, setLastRecordingUrl] = useState(null);
@@ -15,6 +15,7 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
     const audioContextRef = useRef(null);
     const scriptProcessorRef = useRef(null);
     const accumulatedPCM16DataRef = useRef([]);
+    const isUsingExternalStreamRef = useRef(false);
 
     const updateRecordingTime = useCallback(() => {
         if (recordingStartTimeRef.current) {
@@ -76,14 +77,24 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
     const startRecording = useCallback(async () => {
         try {
             console.log('Starting recording...');
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    sampleRate: 24000, // Optimal for OpenAI Realtime API
-                    channelCount: 1 // Mono audio
-                }
-            });
+            let stream;
+
+            if (externalStream) {
+                console.log('[AudioRecorder] Using external stream');
+                stream = externalStream;
+                isUsingExternalStreamRef.current = true;
+            } else {
+                console.log('[AudioRecorder] Requesting new media stream');
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 24000, // Optimal for OpenAI Realtime API
+                        channelCount: 1 // Mono audio
+                    }
+                });
+                isUsingExternalStreamRef.current = false;
+            }
 
             audioStreamRef.current = stream;
             recordedChunksRef.current = [];
@@ -117,8 +128,6 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
             };
 
             // Connect the audio pipeline: source -> processor
-            // Note: We need to connect to destination for some browsers to process audio
-            // Use GainNode with zero gain to prevent audio feedback
             const gainNode = audioContextRef.current.createGain();
             gainNode.gain.value = 0; // Mute the audio to prevent feedback
 
@@ -137,116 +146,170 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
             console.log('Using MIME type:', mimeType);
             setAudioFormat(`PCM16 24kHz (real-time capture)`);
 
-            mediaRecorderRef.current = new MediaRecorder(stream, { mimeType });
+            // Only start MediaRecorder if we are NOT sharing a stream, 
+            // OR if we really want a local recording even when sharing.
+            // But usually when sharing, the parent is already recording video.
+            // To avoid "NotSupportedError" (concurrent recorders on same stream),
+            // we can skip MediaRecorder here if externalStream is present.
+            // However, the VoiceButton logic expects onAudioRecorded to be called with a Blob.
+            
+            // STRATEGY: Try to record audio-only if external stream is video+audio
+            // This reduces conflict probability.
+            let recorderStream = stream;
+            if (externalStream) {
+                 // If external stream has video, let's try to extract only audio track for this recorder
+                 // This often helps with browser resource locking
+                 const audioTracks = stream.getAudioTracks();
+                 if (audioTracks.length > 0) {
+                     recorderStream = new MediaStream(audioTracks);
+                     console.log('[AudioRecorder] Extracted audio track for concurrent recording');
+                 }
+            }
 
-            mediaRecorderRef.current.ondataavailable = (event) => {
-                if (event.data && event.data.size > 0) {
-                    console.log('Audio chunk recorded:', event.data.size, 'bytes');
-                    recordedChunksRef.current.push(event.data);
-                }
-            };
+            try {
+                mediaRecorderRef.current = new MediaRecorder(recorderStream, { mimeType });
+                
+                mediaRecorderRef.current.ondataavailable = (event) => {
+                    if (event.data && event.data.size > 0) {
+                        console.log('Audio chunk recorded:', event.data.size, 'bytes');
+                        recordedChunksRef.current.push(event.data);
+                    }
+                };
 
-            mediaRecorderRef.current.onstop = async () => {
-                console.log('Recording stopped, processing', recordedChunksRef.current.length, 'chunks');
+                mediaRecorderRef.current.onstop = async () => {
+                    console.log('Recording stopped, processing', recordedChunksRef.current.length, 'chunks');
 
-                // Disconnect Web Audio API components
-                if (scriptProcessorRef.current) {
-                    scriptProcessorRef.current.disconnect();
-                    scriptProcessorRef.current = null;
-                }
+                    // Disconnect Web Audio API components
+                    if (scriptProcessorRef.current) {
+                        scriptProcessorRef.current.disconnect();
+                        scriptProcessorRef.current = null;
+                    }
 
-                if (recordedChunksRef.current.length === 0) {
-                    console.error('No audio chunks recorded');
-                    // Use accumulated PCM16 data as fallback
-                    if (accumulatedPCM16DataRef.current.length > 0) {
+                    // Prepare Blob
+                    let finalBlob = null;
+                    if (recordedChunksRef.current.length > 0) {
+                        finalBlob = new Blob(recordedChunksRef.current, { type: mimeType });
+                        console.log('Created blob:', finalBlob.size, 'bytes');
+                        const url = URL.createObjectURL(finalBlob);
+                        setLastRecordingUrl(url);
+                    } else {
+                        console.warn('No recorded chunks for Blob');
+                    }
+
+                    // Convert to PCM16 (using Blob if available, or fallback to accumulator)
+                    let pcm16Data = null;
+                    
+                    if (finalBlob) {
+                        console.log('Converting audio to PCM16 from Blob...');
+                        pcm16Data = await convertWebMToPCM16(finalBlob);
+                    } else if (accumulatedPCM16DataRef.current.length > 0) {
+                        // Fallback to accumulated chunks if Blob creation failed
                         const totalLength = accumulatedPCM16DataRef.current.reduce((sum, chunk) => sum + chunk.length, 0);
-                        const combinedPCM16 = new Int16Array(totalLength);
+                        pcm16Data = new Int16Array(totalLength);
                         let offset = 0;
                         for (const chunk of accumulatedPCM16DataRef.current) {
-                            combinedPCM16.set(chunk, offset);
+                            pcm16Data.set(chunk, offset);
                             offset += chunk.length;
                         }
-                        console.log('Using accumulated PCM16 data:', combinedPCM16.length, 'samples');
-
-                        // Check if the accumulated data is silent
-                        const isSilent = detectSilence(combinedPCM16);
-
-                        if (onAudioRecorded) {
-                            onAudioRecorded(combinedPCM16, { isSilent });
-                        }
-                    } else {
-                        // No audio data at all - treat as silent
-                        if (onAudioRecorded) {
-                            onAudioRecorded(null, { isSilent: true });
-                        }
+                        console.log('Using accumulated PCM16 data fallback:', pcm16Data.length, 'samples');
                     }
-                    return;
-                }
 
-                const blob = new Blob(recordedChunksRef.current, { type: mimeType });
-                console.log('Created blob:', blob.size, 'bytes');
-
-                const url = URL.createObjectURL(blob);
-                setLastRecordingUrl(url);
-
-                // Convert to PCM16 and send to API
-                console.log('Converting audio to PCM16...');
-                const pcm16Data = await convertWebMToPCM16(blob);
-
-                if (pcm16Data && pcm16Data.length > 0) {
-                    console.log('Audio conversion successful, checking for silence...');
-
-                    // Check if the recording is silent
-                    const isSilent = detectSilence(pcm16Data);
-
+                    // Check silence and callback
                     if (onAudioRecorded) {
-                        onAudioRecorded(pcm16Data, { isSilent });
+                        const isSilent = pcm16Data ? detectSilence(pcm16Data) : true;
+                        
+                        // Pass BOTH pcm16Data AND the Blob
+                        onAudioRecorded(pcm16Data, { 
+                            isSilent, 
+                            blob: finalBlob,
+                            mimeType: mimeType 
+                        });
                     } else {
                         console.error('onAudioRecorded callback is not provided');
                     }
-                } else {
-                    console.error('Audio conversion failed - no PCM16 data produced');
-                    // Treat empty data as silent
-                    if (onAudioRecorded) {
-                        onAudioRecorded(null, { isSilent: true });
+
+                    // Cleanup resources
+                    if (audioStreamRef.current && !isUsingExternalStreamRef.current) {
+                        console.log('[AudioRecorder] Stopping internal media stream tracks');
+                        audioStreamRef.current.getTracks().forEach(track => track.stop());
                     }
-                }
+                    if (audioContextRef.current) {
+                        audioContextRef.current.close();
+                    }
+                };
 
-                // Clean up stream
-                if (audioStreamRef.current) {
-                    audioStreamRef.current.getTracks().forEach(track => track.stop());
-                }
+                mediaRecorderRef.current.start(100);
+            } catch (err) {
+                console.error('[AudioRecorder] Failed to start MediaRecorder (likely concurrent limit). Falling back to script processor only.', err);
+                // Even if MediaRecorder fails, we still have ScriptProcessor running for real-time audio!
+                // We just won't have a final "Blob" at the end.
+                // If stopRecording is called later, we need to handle the case where mediaRecorderRef.current is valid but didn't start, 
+                // or invalid.
+                // However, usually ScriptProcessor is enough for voice chat. 
+                // But we need to simulate the "onstop" behavior manually if MediaRecorder failed?
+                // For now, let's just let it fail gracefully and rely on accumulated PCM data if user stops.
+            }
 
-                // Clean up AudioContext
-                if (audioContextRef.current) {
-                    audioContextRef.current.close();
-                }
-            };
-
-            // Use shorter intervals for regular recording
-            mediaRecorderRef.current.start(100);
             setIsRecording(true);
             recordingStartTimeRef.current = Date.now();
-
-            // Start timer
             recordingTimerRef.current = setInterval(updateRecordingTime, 100);
 
-            console.log('Recording started successfully with real-time PCM16 capture');
             return true;
         } catch (error) {
             console.error('Error starting recording:', error);
             return false;
         }
-    }, [updateRecordingTime, convertWebMToPCM16, onAudioRecorded, onAudioChunk, floatToPCM16]);
+    }, [updateRecordingTime, convertWebMToPCM16, onAudioRecorded, onAudioChunk, floatToPCM16, externalStream]);
 
     const stopRecording = useCallback(() => {
         console.log('Stopping recording...');
 
+        // Stop MediaRecorder if it exists and is recording
         if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
             mediaRecorderRef.current.stop();
-            console.log('MediaRecorder stopped');
         } else {
-            console.log('MediaRecorder not in recording state:', mediaRecorderRef.current?.state);
+            // If MediaRecorder failed to start (e.g. NotSupportedError), we still need to trigger the cleanup logic
+            // that normally happens in onstop.
+            // Since we can't trigger onstop manually on a broken recorder, we might need to manually
+            // call the cleanup logic here if we are in "headless" mode.
+            
+            // However, most critical logic (PCM processing) happens in real-time via ScriptProcessor.
+            // The main thing missing is the "onRecordingComplete" callback with the final Blob.
+            // If MediaRecorder failed, we won't get a Blob.
+            
+            // Let's manually cleanup audio context stuff here to be safe
+             if (scriptProcessorRef.current) {
+                scriptProcessorRef.current.disconnect();
+                scriptProcessorRef.current = null;
+            }
+
+            if (audioStreamRef.current && !isUsingExternalStreamRef.current) {
+                console.log('[AudioRecorder] Stopping internal media stream tracks');
+                audioStreamRef.current.getTracks().forEach(track => track.stop());
+                audioStreamRef.current = null;
+            }
+
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+            }
+            
+            // Manually trigger callback with accumulated data if needed
+            // But usually the VoiceButton relies on onAudioChunk for real-time stuff.
+            // The onRecordingComplete is mostly for silence detection post-hoc.
+            if (onAudioRecorded && accumulatedPCM16DataRef.current.length > 0) {
+                 const totalLength = accumulatedPCM16DataRef.current.reduce((sum, chunk) => sum + chunk.length, 0);
+                 const pcm16Data = new Int16Array(totalLength);
+                 let offset = 0;
+                 for (const chunk of accumulatedPCM16DataRef.current) {
+                     pcm16Data.set(chunk, offset);
+                     offset += chunk.length;
+                 }
+                 
+                 // Check silence
+                 const isSilent = detectSilence(pcm16Data);
+                 onAudioRecorded(pcm16Data, { isSilent, blob: null, mimeType: 'audio/webm' });
+            }
         }
 
         setIsRecording(false);
@@ -257,31 +320,8 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
             recordingTimerRef.current = null;
         }
 
-        // Clean up Web Audio API components
-        if (scriptProcessorRef.current) {
-            scriptProcessorRef.current.disconnect();
-            scriptProcessorRef.current = null;
-            console.log('ScriptProcessorNode disconnected');
-        }
-
-        // Clean up audio stream immediately (don't wait for MediaRecorder.onstop)
-        if (audioStreamRef.current) {
-            audioStreamRef.current.getTracks().forEach(track => {
-                track.stop();
-                console.log('Audio track stopped:', track.kind);
-            });
-            audioStreamRef.current = null;
-        }
-
-        // Clean up AudioContext
-        if (audioContextRef.current) {
-            audioContextRef.current.close();
-            audioContextRef.current = null;
-            console.log('AudioContext closed');
-        }
-
         setRecordingTime('00:00');
-    }, []);
+    }, [onAudioRecorded]);
 
     const playLastRecording = useCallback(() => {
         if (lastRecordingUrl) {
@@ -299,4 +339,4 @@ export const useAudioRecorder = (onAudioRecorded, onAudioChunk = null) => {
         stopRecording,
         playLastRecording,
     };
-}; 
+};

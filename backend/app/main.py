@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+# from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.health_check import health_check_router
 from app.routes.realtime import realtime_router
@@ -7,14 +7,15 @@ from app.routes.books import books_router
 from app.routes.prompts import prompts_router
 from app.routes.auth import router as auth_router
 from app.routes.conversations import router as conversations_router
-from app.config import CORS_ORIGINS
+from app.routes.uploads import router as uploads_router
+from app.config import settings
 
 app = FastAPI(title="Convo Book API", description="Real-time communication hub")
 
 # Add CORS middleware - dynamically configured based on environment
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -25,19 +26,11 @@ app.include_router(health_check_router, prefix="/health")
 app.include_router(realtime_router)
 app.include_router(books_router, prefix="/api")
 app.include_router(prompts_router, prefix="/api")
-app.include_router(auth_router, prefix="/api")
+app.include_router(auth_router, prefix="/api/auth")
 app.include_router(conversations_router, prefix="/api", tags=["conversations"])
+app.include_router(uploads_router, prefix="/api", tags=["uploads"])
 
 # Root API endpoint
 @app.get("/")
 async def root():
     return {"message": "Convo Book API", "status": "running", "docs": "/docs"}
-
-# Mount React app (when built for production)
-import os
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-frontend_build_path = os.path.join(project_root, "frontend", "build")
-
-# Only mount static files if build directory exists (production mode)
-if os.path.exists(frontend_build_path):
-    app.mount("/app", StaticFiles(directory=frontend_build_path, html=True), name="react-app")

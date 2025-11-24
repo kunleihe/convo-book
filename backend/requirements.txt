@@ -8,3 +8,5 @@ sqlalchemy==2.0.36       # ORM for database (SQLite, etc.)
 PyYAML==6.0.1            # For YAML file parsing
 PyJWT==2.10.1            # For JWT token authentication
 psycopg2-binary==2.9.10   # PostgreSQL adapter for Python (for RDS)
+boto3>=1.35.0            # For AWS S3 service
+pydantic-settings>=2.0.0 # For loading environment variables from .env files

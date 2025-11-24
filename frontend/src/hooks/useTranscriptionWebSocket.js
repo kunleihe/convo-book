@@ -149,7 +149,11 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
             const API_BASE_URL = import.meta.env.VITE_API_URL || '';
             const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
             const wsBase = API_BASE_URL.replace(/^https?:/, wsProtocol + ':');
-            const wsUrl = `${wsBase}/transcription`;
+            
+            // Add token to URL query parameters for authentication
+            const token = localStorage.getItem('authToken');
+            const wsUrl = `${wsBase}/transcription${token ? `?token=${token}` : ''}`;
+            
             addDebugMessage(`Connecting to: ${wsUrl}`);
 
             const ws = new WebSocket(wsUrl);

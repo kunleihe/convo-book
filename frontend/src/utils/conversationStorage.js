@@ -5,6 +5,8 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 export const storeConversationMessage = async (text, sender, bookId, pageNumber, questionId) => {
     try {
         const token = localStorage.getItem('authToken');
+        const username = localStorage.getItem('username') || 'guest'; // Get username from storage
+        
         if (!token) {
             console.warn('No auth token found, cannot store conversation');
             return;
@@ -17,7 +19,8 @@ export const storeConversationMessage = async (text, sender, bookId, pageNumber,
                 page_number: pageNumber,
                 question_id: questionId,
                 sender: sender,
-                text: text
+                text: text,
+                username: username
             })
         });
 

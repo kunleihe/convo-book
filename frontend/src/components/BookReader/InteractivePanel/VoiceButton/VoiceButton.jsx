@@ -8,7 +8,9 @@ const VoiceButton = ({
     disabled = false,
     onAudioRecorded,
     onAudioChunk,
-    onRecordingComplete
+    onRecordingComplete,
+    onRecordingStart,
+    sharedStream = null // New prop
 }) => {
     // Audio recording functionality
     const {
@@ -38,7 +40,8 @@ const VoiceButton = ({
             if (onAudioChunk) {
                 onAudioChunk(pcm16Data);
             }
-        }
+        },
+        sharedStream // Pass external stream to hook
     );
 
     const handleClick = async () => {
@@ -47,6 +50,9 @@ const VoiceButton = ({
                 // Start recording
                 console.log('[VoiceButton] Starting recording...');
                 const success = await startRecording();
+                if (success && onRecordingStart) {
+                    onRecordingStart();
+                }
                 if (!success) {
                     console.error('[VoiceButton] Failed to start recording');
                 }
@@ -79,4 +85,4 @@ const VoiceButton = ({
     );
 };
 
-export default VoiceButton; 
+export default VoiceButton;
