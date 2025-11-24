@@ -8,7 +8,8 @@ const VoiceButton = ({
     disabled = false,
     onAudioRecorded,
     onAudioChunk,
-    onRecordingComplete
+    onRecordingComplete,
+    onRecordingStart
 }) => {
     // Audio recording functionality
     const {
@@ -47,6 +48,9 @@ const VoiceButton = ({
                 // Start recording
                 console.log('[VoiceButton] Starting recording...');
                 const success = await startRecording();
+                if (success && onRecordingStart) {
+                    onRecordingStart();
+                }
                 if (!success) {
                     console.error('[VoiceButton] Failed to start recording');
                 }

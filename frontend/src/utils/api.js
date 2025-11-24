@@ -74,6 +74,7 @@ export const getBookDetails = async (bookId) => {
  * metadata: { filename, content_type, book_id, page_number, stage, username }
  */
 export const getUploadUrl = async (metadata) => {
+    console.log('Getting upload URL for metadata:', metadata);
     const response = await apiRequest('/api/upload-url', {
         method: 'POST',
         body: JSON.stringify(metadata)

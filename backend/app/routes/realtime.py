@@ -17,11 +17,13 @@ logging.basicConfig(
 # headers for realtime endpoint
 extra_headers = (
     {
+        "api-key": settings.API_KEY,
+    }
+    if settings.USE_AZURE_OPENAI
+    else {
         "Authorization": f"Bearer {settings.API_KEY}",
         "OpenAI-Beta": "realtime=v1",
     }
-    if settings.USE_AZURE_OPENAI
-    else {"api-key": settings.API_KEY}
 )
 
 async def relay_messages(client_ws: WebSocket, vendor_ws):
