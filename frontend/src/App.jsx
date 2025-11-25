@@ -47,7 +47,7 @@ function App() {
   return (
     <div className="App">
       <BrowserRouter>
-        {isAuthenticated && <ConditionalNavBar />}
+        {/* {isAuthenticated && <ConditionalNavBar />} - Removed for full screen redesign */}
         <main className="main-content">
           <Routes>
             <Route

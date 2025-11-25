@@ -253,19 +253,13 @@ const InteractivePanel = ({
 
     const renderMessage = (message) => {
         const isUser = message.isUser;
-        const avatarSrc = isUser ? userAvatarImage : avatarImage;
+        // const avatarSrc = isUser ? userAvatarImage : avatarImage; // Avatars removed
         const messageClass = isUser ? 'user-message' : 'ai-message';
         const bubbleClass = isUser ? 'user-text' : 'ai-text';
 
         return (
             <div key={message.id} className={`chat-message ${messageClass}`}>
-                <div className="avatar-container">
-                    <img
-                        src={avatarSrc}
-                        alt={isUser ? "User Avatar" : "AI Avatar"}
-                        className="avatar-image"
-                    />
-                </div>
+                {/* Avatar container removed */}
                 <div className={`message-text ${bubbleClass}`}>
                     {message.content}
                 </div>
@@ -273,13 +267,28 @@ const InteractivePanel = ({
         );
     };
 
+    const messagesEndRef = React.useRef(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    // Auto-scroll on new messages
+    useEffect(() => {
+        scrollToBottom();
+    }, [pageVoiceChat.conversationMessages, pageVoiceChat.currentStreamingTranscript, transcriptionWS.transcriptions]);
+
     return (
         <div className="interactive-panel">
+            <div className="drag-handle">
+                <div className="drag-handle-bar"></div>
+            </div>
             <div className="panel-header">
                 <div className="d-flex justify-content-between align-items-center">
-                    <h5 className="mb-0">Chat</h5>
+                    {/* Removed Chat title as requested */}
+                    <div /> 
                     {totalQuestions > 1 && questionIndex !== undefined && (
-                        <small className="text-muted">Question {questionIndex + 1} of {totalQuestions}</small>
+                        <small className="text-muted" style={{ marginLeft: 'auto' }}>Question {questionIndex + 1} of {totalQuestions}</small>
                     )}
                 </div>
                 {pageVoiceChat.isLoading && <small className="text-muted">Connecting...</small>}
@@ -287,26 +296,22 @@ const InteractivePanel = ({
             </div>
 
             <div className="panel-content">
-                {question && (
-                    <div className="question-section">
-                        <div className="chat-message ai-message">
-                            <div className="avatar-container">
-                                <img
-                                    src={avatarImage}
-                                    alt="AI Avatar"
-                                    className="avatar-image"
-                                />
-                            </div>
-                            <div className="message-text ai-text">
-                                {question.questionText}
+                <div className="chat-messages">
+                    {question && (
+                        <div className="question-section">
+                            <div className="chat-message ai-message">
+                                {/* Avatar container removed */}
+                                <div className="message-text ai-text">
+                                    {question.questionText}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
-
-                <div className="chat-messages">
+                    )}
+                    
                     {getCombinedMessages().map(renderMessage)}
+                    <div ref={messagesEndRef} />
                 </div>
+
 
                 <div className="voice-controls">
                     <VoiceButton

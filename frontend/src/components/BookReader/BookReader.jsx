@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Container, Alert, Spinner, Button } from 'react-bootstrap';
+import Draggable from 'react-draggable';
 import { loadBookData, getPageData } from '../../utils/bookDataLoader';
 import { saveReadingProgress, clearReadingProgress } from '../../utils/storageUtils';
 import { apiRequest } from '../../utils/api';
@@ -398,69 +399,69 @@ const BookReader = () => {
     }
 
     return (
-        <div className={`book-reader ${showChatPanel ? 'with-chat-panel' : ''}`}>
-            {/* Book Section */}
-            <div className={`reading-section ${showChatPanel ? 'with-chat' : ''}`}>
-                {/* Main Reading Area */}
-                <div className="reading-container">
-                    <div className="page-wrapper">
-                        {/* Book Page Container with Navigation */}
-                        <div className="book-page-container">
-                            {/* Previous Page Button */}
-                            <Button
-                                variant="outline-secondary"
-                                className="page-nav-btn page-nav-prev"
-                                disabled={!canGoPrevious()}
-                                onClick={handlePreviousPage}
-                            >
-                                ←
-                            </Button>
-
-                            {/* Book Page Image */}
-                            <img
-                                src={currentPage.imageUrl}
-                                alt={`Page ${currentPage.pageNumber}`}
-                                className="book-page-image"
-                            />
-
-                            {/* Next Page Button */}
-                            <Button
-                                variant="outline-secondary"
-                                className={`page-nav-btn page-nav-next ${getButtonColorClass()}`}
-                                disabled={!canPerformAction()}
-                                onClick={handleNextPage}
-                            >
-                                →
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Bottom Status Bar */}
-                <div className="bottom-status-bar">
-                    <Container>
-                        <div className="d-flex justify-content-between align-items-center">
-                            <h6 className="mb-0 small">{bookData.title}</h6>
-                            <span className="page-info small">Page {pageNumber} of {bookData.totalPages}</span>
-                        </div>
-                    </Container>
-                </div>
+        <div className="book-reader-fullscreen">
+            {/* Layer 1: Story Image */}
+            <div className="image-layer">
+                <img
+                    src={currentPage.imageUrl}
+                    alt={`Page ${currentPage.pageNumber}`}
+                    className="fullscreen-image"
+                />
             </div>
 
-            {/* Chat Panel */}
+            {/* Layer 2: Floating Interactive Panel */}
             {showChatPanel && (
-                <InteractivePanel
-                    mode={'chat'}
-                    question={activeQuestion}
-                    messages={chatMessages}
-                    onAudioPlayingChange={setIsQuestionAudioPlaying}
-                    bookId={bookId}
-                    pageNumber={parseInt(pageNumber, 10)}
-                    questionIndex={currentQuestionIndex}
-                    totalQuestions={currentQuestions.length}
-                    sharedStream={globalStream} // Pass the global stream to share
-                />
+                <Draggable handle=".drag-handle" bounds="parent">
+                    <div className="interactive-panel-container" style={{ position: 'absolute', bottom: '60px', right: '20px', zIndex: 1500 }}>
+                        <InteractivePanel
+                            mode={'chat'}
+                            question={activeQuestion}
+                            messages={chatMessages}
+                            onAudioPlayingChange={setIsQuestionAudioPlaying}
+                            bookId={bookId}
+                            pageNumber={parseInt(pageNumber, 10)}
+                            questionIndex={currentQuestionIndex}
+                            totalQuestions={currentQuestions.length}
+                            sharedStream={globalStream}
+                        />
+                    </div>
+                </Draggable>
             )}
+
+            {/* Layer 3: Bottom Control Bar */}
+            <div className="bottom-control-bar">
+                <div className="left-controls">
+                    <button className="btn-control btn-home" onClick={() => navigate('/')}>Home</button>
+                    <button
+                        className="btn-control btn-prev"
+                        disabled={!canGoPrevious()}
+                        onClick={handlePreviousPage}
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 12H5M12 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div className="center-controls">
+                    {/* Center button removed as it's now in the panel */}
+                </div>
+
+                <div className="right-controls">
+                    <button
+                        className="btn-control btn-next"
+                        disabled={!canPerformAction()}
+                        onClick={handleNextPage}
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                        {currentPage?.questions && currentPage.questions.length > 0 && (
+                            <span className="question-badge">?</span>
+                        )}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };

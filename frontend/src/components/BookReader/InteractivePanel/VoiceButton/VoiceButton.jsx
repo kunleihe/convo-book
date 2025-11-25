@@ -66,21 +66,11 @@ const VoiceButton = ({
 
     return (
         <button
-            className={`voice-button btn btn-primary ${isRecording ? 'recording' : ''}`}
+            className={`voice-button ${isRecording ? 'recording' : 'ready'}`}
             disabled={disabled}
             onClick={handleClick}
         >
-            {isRecording ? (
-                <>
-                    <img src={recordIcon} alt="Recording" className="button-icon" />
-                    Recording... (Tap to Stop)
-                </>
-            ) : (
-                <>
-                    <img src={microphoneIcon} alt="Microphone" className="button-icon" />
-                    Tap to Record
-                </>
-            )}
+            {isRecording ? 'Finish speaking' : 'Start speaking'}
         </button>
     );
 };
