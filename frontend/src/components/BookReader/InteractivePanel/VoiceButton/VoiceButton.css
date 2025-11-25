@@ -1,44 +1,83 @@
 .voice-button {
-    width: 100%;
-    padding: 0.75rem 1.5rem;
-    border-radius: 2rem;
+    width: 50%;
+    /* Reduced width from 100% to 60% */
+    margin: 0 auto;
+    /* Center the button */
+    padding: 0.6rem 1.2rem;
+    border-radius: 8px;
     font-weight: 600;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.3rem;
+    border: none;
+    /* text-transform: uppercase; Removed uppercase */
+    letter-spacing: 0.5px;
+    font-size: 1.1rem;
+    /* Increased font size from 1.0rem to 1.1rem */
+}
+
+/* Ready State (Start Speaking) */
+.voice-button.ready {
+    background-color: #007bff;
+    color: white;
+    box-shadow: 0 0 15px rgba(0, 123, 255, 0.5);
+    /* Blue Glow */
+    animation: pulse-blue 2s infinite;
+    /* Added pulse animation */
+}
+
+.voice-button.ready:hover:not(:disabled) {
+    background-color: #0056b3;
+    box-shadow: 0 0 20px rgba(0, 123, 255, 0.7);
+    transform: translateY(-1px);
 }
 
 .voice-button:disabled {
-    opacity: 0.5;
+    background-color: #6c757d;
+    color: #e9ecef;
+    box-shadow: none;
+    opacity: 0.6;
     cursor: not-allowed;
     pointer-events: none;
+    animation: none;
+    /* No animation when disabled */
 }
 
+/* Recording State (Finish Speaking) */
 .voice-button.recording {
-    background-color: #dc3545 !important;
-    border-color: #dc3545 !important;
-    animation: pulse 1.5s infinite;
-    font-weight: 600;
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+    animation: pulse-red 1.5s infinite;
+    box-shadow: 0 0 15px rgba(220, 53, 69, 0.5);
+    /* Red Glow */
 }
 
-.button-icon {
-    width: 1.4rem;
-    height: 1.4rem;
-    filter: brightness(0) invert(1);
-}
-
-@keyframes pulse {
+@keyframes pulse-red {
     0% {
-        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
     }
 
-    50% {
-        opacity: 0.7;
+    70% {
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
     }
 
     100% {
-        opacity: 1;
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+    }
+}
+
+@keyframes pulse-blue {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
     }
 }

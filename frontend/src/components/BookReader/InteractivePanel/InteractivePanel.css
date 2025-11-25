@@ -1,15 +1,43 @@
 .interactive-panel {
-    width: 380px;
-    height: 100%;
-    background: #ffffff;
-    border-left: 1px solid #dee2e6;
+    width: 500px; /* Increased width as requested */
+    max-height: 60vh;
+    background: rgba(255, 255, 255, 0.85); /* Semi-transparent white for frosted glass */
+    backdrop-filter: blur(5px); /* Frosted glass effect */
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); /* Softer shadow */
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle border */
+}
+
+.drag-handle {
+    height: 24px;
+    background: rgba(248, 249, 250, 0.8); /* Slightly transparent light gray */
+    cursor: grab;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    flex-shrink: 0;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.drag-handle-bar {
+    width: 40px;
+    height: 4px;
+    background-color: #cbd3da;
+    border-radius: 2px;
 }
 
 .panel-header {
-    padding: 1rem;
-    border-bottom: 1px solid #dee2e6;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    flex-shrink: 0; /* Prevent header shrinking */
+    color: #333; /* Dark text for header */
 }
 
 .panel-content {
@@ -17,6 +45,7 @@
     display: flex;
     flex-direction: column;
     padding: 1rem;
+    min-height: 0; /* Critical for flex child scrolling */
 }
 
 .chat-message {
@@ -31,43 +60,68 @@
 }
 
 .avatar-container {
-    flex-shrink: 0;
+    display: none;
 }
 
 .avatar-image {
-    width: 32px;
-    height: 32px;
-    object-fit: cover;
+    display: none;
 }
 
 .message-text {
-    padding: 0.75rem;
-    border-radius: 0.5rem;
-    line-height: 1.4;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    line-height: 1.5;
     word-wrap: break-word;
-    font-size: 16px;
+    font-size: 18px; /* Font size 18px */
     flex: 1;
-    max-width: 70%;
+    max-width: 100%; /* Full width */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.1); /* Light border for bubbles */
 }
 
 .message-text.ai-text {
-    background: #007AFF10;
+    background: #f2f2f7; /* Light gray for AI */
     color: #333;
+    border-top-left-radius: 0;
+    border-color: #e5e5ea; /* Specific border color for AI */
 }
 
 .message-text.user-text {
-    background: #f8f9fa;
+    background: #ffffff; /* White for user */
     color: #333;
+    border-top-right-radius: 0;
+    border-color: #e5e5ea; /* Specific border color for user */
+}
+
+/* Question specific styling */
+.question-section {
+    margin-bottom: 1rem;
 }
 
 .chat-messages {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: auto; /* Scrollable area */
     margin-bottom: 1rem;
+    padding-right: 5px; /* Avoid scrollbar covering text */
+}
+
+/* Custom Scrollbar for Webkit */
+.chat-messages::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
 }
 
 .voice-controls {
     text-align: center;
+    flex-shrink: 0; /* Prevent controls shrinking */
 }
 
 .discussion-section {

@@ -1,229 +1,215 @@
-.book-reader {
-    height: calc(100vh - 56px);
-    /* Subtract Bootstrap navbar height */
-    height: calc(100dvh - 56px);
-    /* Use dynamic viewport height when supported */
-    display: flex;
-    flex-direction: column;
-    background-color: #ffffff;
-}
-
-/* Split-screen layout when chat panel is visible */
-.book-reader.with-chat-panel {
-    flex-direction: row;
-}
-
-.reading-section {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.reading-section.with-chat {
-    flex: 1;
-}
-
-
-
-/* Main Reading Container */
-.reading-container {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1rem;
-}
-
-/* Page Wrapper */
-.page-wrapper {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Book Page Container - this contains the image and navigation arrows */
-.book-page-container {
+/* Fullscreen Container */
+.book-reader-fullscreen {
     position: relative;
-    max-width: 75%;
-    max-height: 80%;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-color: #ffffff;
+    /* Image area background */
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
 }
 
-/* Book Page Image */
-.book-page-image {
+/* Image Layer */
+.image-layer {
+    flex: 1;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    /* For absolute children if any */
+}
+
+.fullscreen-image {
     max-width: 100%;
     max-height: 100%;
+    /* 'contain' shows full image */
     object-fit: contain;
-    border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    transition: transform 0.2s ease-in-out;
 }
 
-/* Navigation Arrows - positioned relative to book container */
-.page-nav-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
+/* Bottom Control Bar */
+.bottom-control-bar {
+    width: 100%;
+    height: 55px;
+    /* Increased height for more spacing */
+    background: #ffffff;
+    /* Solid background */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4rem 0 2rem;
+    z-index: 2000;
+    border-top: 1px solid #e0e0e0;
+    /* Flat separator */
+}
+
+/* Button Groups */
+.left-controls,
+.center-controls,
+.right-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.right-controls {
+    gap: 15px;
+    /* Adjust gap for bubble */
+}
+
+.center-controls {
+    flex: 1;
+    justify-content: center;
+}
+
+/* Button Styling */
+.btn-control {
+    padding: 0;
+    /* Remove padding as we set explicit height/width or use flex alignment */
+    border-radius: 8px;
+    /* Rounded rectangle */
+    border: none;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+    min-width: 40px;
+    /* Slightly smaller */
+    height: 35px;
+    /* Reduced height */
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.2rem;
-    font-weight: bold;
-    border: 2px solid #dee2e6;
-    background-color: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(4px);
-    transition: all 0.2s ease-in-out;
-    z-index: 10;
+    position: relative;
+    /* For badge positioning */
 }
 
-.page-nav-prev {
-    left: -80px;
+.btn-home {
+    background-color: transparent;
+    color: #666;
+    border: 1px solid #e0e0e0;
+    padding: 0 1rem;
 }
 
-.page-nav-next {
-    right: -80px;
+.btn-prev,
+.btn-next {
+    background-color: #e2e6ea;
+    color: #212529;
+    padding: 0 1rem;
+    /* Horizontal padding */
 }
 
-.page-nav-btn:hover:not(:disabled) {
-    background-color: #007bff;
-    border-color: #007bff;
-    color: white;
-    transform: translateY(-50%) scale(1.1);
-}
-
-/* Question button has different hover color */
-.page-nav-btn.question-btn:hover:not(:disabled) {
-    background-color: #28a745;
-    border-color: #28a745;
-    color: white;
-    transform: translateY(-50%) scale(1.1);
-}
-
-.page-nav-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-/* Bottom Status Bar */
-.bottom-status-bar {
-    height: 40px;
+.btn-home:hover {
     background-color: #f8f9fa;
-    border-top: 1px solid #dee2e6;
+}
+
+.btn-prev:hover,
+.btn-next:hover {
+    background-color: #caced1;
+}
+
+.btn-speak {
+    background-color: #f0f0f0;
+    color: #666;
+    border: none;
+    padding: 0 2rem;
+    /* Horizontal padding */
+    height: 35px;
+    /* Specific height for main action */
+    border-radius: 8px;
+    /* Rounded rectangle */
+    font-size: 1rem;
+    font-weight: 600;
     display: flex;
     align-items: center;
-    flex-shrink: 0;
 }
 
-.bottom-status-bar h6 {
-    color: #333333;
-    font-weight: 600;
+/* Will be used in later modules */
+.btn-speak.recording {
+    background-color: #dc3545;
+    color: white;
 }
 
-.page-info {
-    color: #6c757d;
-    font-weight: 500;
+/* Question Trigger */
+.question-trigger-wrapper {
+    position: relative;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
-    .reading-container {
-        padding: 1rem;
-    }
-
-    .book-page-container {
-        max-width: 85%;
-        max-height: 75%;
-    }
-
-    .page-nav-btn {
-        width: 50px;
-        height: 50px;
-        font-size: 1.2rem;
-    }
-
-    .page-nav-prev {
-        left: -60px;
-    }
-
-    .page-nav-next {
-        right: -60px;
-    }
-
-    .bottom-status-bar {
-        height: auto;
-        padding: 0.75rem 0;
-    }
+.btn-question-orange {
+    background-color: #fd7e14;
+    color: white;
+    width: 36px;
+    /* Reduced size */
+    height: 36px;
+    /* Reduced size */
+    border-radius: 8px;
+    /* Rounded rectangle */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
 }
 
-@media (max-width: 480px) {
-    .book-page-container {
-        max-width: 90%;
-        max-height: 80%;
-    }
-
-    .page-nav-btn {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
-    }
-
-    .page-nav-prev {
-        left: -50px;
-    }
-
-    .page-nav-next {
-        right: -50px;
-    }
-
-    .bottom-status-bar .d-flex {
-        flex-direction: column;
-        gap: 0.25rem;
-        text-align: center;
-    }
+.badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-/* Loading and error states */
+/* Loading State */
 .loading-book {
     height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
+    color: white;
+    background-color: #000;
 }
 
-/* Responsive design for chat panel */
-@media (max-width: 1024px) {
-    .book-reader.with-chat-panel {
-        flex-direction: column;
-    }
-
-    .reading-section.with-chat {
-        height: 60vh;
-    }
-
-    .interactive-panel {
-        width: 100%;
-        height: 40vh;
-    }
+/* Question Badge */
+.question-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background-color: #fd7e14;
+    /* Orange */
+    color: white;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    /* Circular */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    animation: popIn 0.3s ease-out;
+    z-index: 10;
 }
 
-@media (max-width: 768px) {
-    .book-reader.with-chat-panel {
-        position: relative;
+/* Pop-in animation */
+@keyframes popIn {
+    0% {
+        transform: scale(0);
+        opacity: 0;
     }
 
-    .interactive-panel {
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 1000;
+    80% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
     }
 }
