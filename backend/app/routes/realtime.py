@@ -47,11 +47,11 @@ async def relay_messages(client_ws: WebSocket, vendor_ws):
                         else:
                             warning_msg = "Invalid JSON data received."
                             logging.warning(warning_msg)
-                            await send_text_safe(client_ws, warning_msg)
+                            await send_text_safe(client_ws, json.dumps({"type": "error", "message": warning_msg}))
                     except json.JSONDecodeError:
                         warning_msg = "Invalid JSON format."
                         logging.warning(warning_msg)
-                        await send_text_safe(client_ws, warning_msg)
+                        await send_text_safe(client_ws, json.dumps({"type": "error", "message": warning_msg}))
                     
         except WebSocketDisconnect:
             logging.info("Client WebSocket disconnected.")
@@ -100,12 +100,12 @@ async def websocket_endpoint(websocket: WebSocket):
     except websockets.exceptions.InvalidHandshake as e:
         error_msg = f"Vendor WebSocket handshake failed: {e}"
         logging.error(error_msg)
-        await send_text_safe(websocket, error_msg)
+        await send_text_safe(websocket, json.dumps({"type": "error", "message": error_msg}))
     except WebSocketDisconnect:
         logging.info(f"Client disconnected: {client_ip}")
     except Exception as e:
         logging.error(f"Unexpected error: {e}")
-        await send_text_safe(websocket, f"Unexpected error: {e}")
+        await send_text_safe(websocket, json.dumps({"type": "error", "message": f"Unexpected error: {e}"}))
 
 
 async def send_text_safe(ws: WebSocket, message: str):
