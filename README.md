@@ -1,186 +1,157 @@
 # Convo Book
 
-An interactive digital reading platform that combines traditional book reading with AI-powered voice interactions. Built with **React** frontend and **FastAPI** backend, featuring real-time voice communication through OpenAI's Realtime API.
+An interactive digital reading platform that combines traditional book reading with AI-powered voice interactions. Built with React frontend and FastAPI backend, featuring real-time voice communication through OpenAI's Realtime API.
 
-## 📋 Table of Contents
+## Key Features
 
-- [✨ Key Features](#-key-features)
-- [🏗️ Project Structure](#️-project-structure)
-- [📦 Setup and Installation](#-setup-and-installation)
-- [🚀 Quick Start](#-quick-start)
-- [📚 How It Works](#-how-it-works)
-- [⚙️ Configuration](#️-configuration)
-- [🏗️ Architecture](#️-architecture)
+- Interactive book library with progress tracking
+- Digital book reader with page navigation and illustrations
+- Real-time AI voice assistant using OpenAI Realtime API
+- AI-generated interactive questions
+- Family discussion prompts
+- User authentication
 
-## ✨ Key Features
-
-- **📚 Interactive Book Library** - Browse and select from available books
-- **📖 Digital Book Reader** - Page-by-page reading with beautiful illustrations
-- **🎤 AI Voice Assistant** - Real-time voice conversations with OpenAI's Realtime API
-- **❓ Interactive Questions** - AI-generated questions to engage readers
-- **👨‍👩‍👧‍👦 Family Discussions** - Audio prompts for family conversations
-- **📱 Responsive Design** - Works on desktop and mobile devices
-- **💾 Reading Progress** - Automatic progress tracking and resume functionality
-
-## 🏗️ Project Structure 
+## Project Structure
 
 ```
 convo-book/
-├── backend/                    # FastAPI server
+├── backend/
 │   ├── app/
-│   │   ├── routes/            # API endpoints (books, realtime, prompts)
-│   │   ├── main.py           # FastAPI application
-│   │   └── config.py         # Configuration
+│   │   ├── routes/          # API endpoints
+│   │   ├── main.py          # FastAPI application
+│   │   ├── config.py        # Configuration
+│   │   ├── auth.py          # Authentication
+│   │   └── s3_client.py     # S3 integration
 │   ├── data/
-│   │   ├── books/            # Book JSON files
-│   │   └── prompt-templates.json
-│   └── requirements.txt       # Python dependencies
-├── frontend/                   # React application
+│   │   ├── books/           # Book data (YAML files)
+│   │   ├── prompts.yaml     # Prompt templates
+│   │   └── users/           # User data
+│   ├── scripts/             # Utility scripts
+│   └── requirements.txt
+├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── BookLibrary/   # Book selection interface
-│   │   │   ├── BookReader/    # Interactive reading experience
-│   │   │   └── VoiceClient/   # AI voice assistant
-│   │   ├── hooks/            # Custom React hooks
-│   │   └── utils/            # Utilities and data loaders
-│   └── package.json          # Node.js dependencies
-└── start_dev.sh              # Development script
+│   │   │   ├── BookLibrary/ # Book selection
+│   │   │   ├── BookReader/  # Reading experience
+│   │   │   ├── Login/       # Authentication
+│   │   │   └── Common/      # Shared components
+│   │   ├── hooks/           # Custom React hooks
+│   │   └── utils/           # Utilities
+│   └── package.json
+└── README.md
 ```
 
-## 📦 Setup and Installation
+## Setup and Installation
 
 ### Prerequisites
+
 - Python 3.8+
 - Node.js 16+
 - OpenAI API Key with Realtime API access
 
 ### Installation
 
-1. **Clone and navigate to the repository:**
+1. Clone the repository:
    ```bash
    git clone <repository-url>
    cd convo-book
    ```
 
-2. **Set up Python environment:**
+2. Set up Python environment:
    ```bash
    python3 -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
    cd backend && pip install -r requirements.txt
    ```
 
-3. **Set up React environment:**
+3. Set up React environment:
    ```bash
    cd frontend && npm install
    ```
 
-4. **Create environment configuration:**
-   
-   Create `.env` file in `/backend/app/`:
+4. Create environment configuration:
+
+   Create `.env` file in `backend/app/`:
    ```env
-   OPENAI_API_KEY="your-openai-api-key"
-   OPENAI_REALTIME_URL="wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01"
-   USE_AZURE_OPENAI=False
+   OPENAI_API_KEY=your-openai-api-key
+   OPENAI_REALTIME_URL=wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01
    ENVIRONMENT=development
+   
+   # S3 configuration (required for user authentication)
+   AWS_ACCESS_KEY_ID=your-aws-access-key
+   AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+   AWS_REGION=your-region
+   S3_BUCKET_NAME=your-bucket-name
    ```
 
-## 🚀 Quick Start
+   User credentials are stored in S3 at `config/users.json`. See [Environment Variables](#environment-variables) for all available options.
 
-### Development Mode (Recommended)
+## Quick Start
+
+Run frontend and backend in separate terminals:
+
 ```bash
-./start_dev.sh
+# Terminal 1 - Backend
+cd backend
+./start_server.sh
+
+# Terminal 2 - Frontend
+cd frontend
+npm run dev
 ```
 
-This starts:
-- **Frontend**: `http://localhost:5173`
-- **Backend API**: `http://localhost:8000`
-- **API Docs**: `http://localhost:8000/docs`
+Access the application:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
 
-### Production Mode
-```bash
-cd frontend && npm run build
-cd ../backend && ./start_server.sh
-```
+## Adding New Books
 
-## 📚 How It Works
+1. Create a directory in `backend/data/books/` with the book ID as folder name
+2. Add `metadata.yaml` with book information
+3. Create `pages/` subdirectory with page YAML files (page01.yaml, page02.yaml, etc.)
+4. Add images to `frontend/public/<book-id>/images/`
+5. Add audio files for questions as needed
 
-### 1. Book Library
-- Browse available books with covers and titles
-- Enable/disable narration features
-- Automatic progress tracking
+Refer to existing books in `backend/data/books/` for structure examples.
 
-### 2. Interactive Reading
-- **Page Navigation**: Use arrow keys or buttons to navigate
-- **Story Content**: Read text and view illustrations
-- **Interactive Elements**: 
-  - Questions appear on specific pages
-  - Family discussion prompts
-  - AI voice assistant integration
-
-### 3. Voice Features
-- **Hold-to-Talk**: Press and hold microphone button to speak
-- **Real-time AI Responses**: Get instant voice responses from OpenAI
-- **Audio Playback**: Automatic audio responses
-
-### 4. Reading Flow
-1. Select a book from the library
-2. Read through pages with story text and images
-3. Encounter interactive questions and discussions
-4. Use voice assistant for additional help
-5. Progress is automatically saved
-
-## ⚙️ Configuration
+## Configuration
 
 ### Voice Settings
-Customize the AI assistant in `frontend/src/config/sessionConfig.js`:
 
-```javascript
-export const sessionConfig = {
-    instructions: "You are a helpful reading assistant...",
-    voice: "alloy", // Options: alloy, echo, fable, onyx, nova, shimmer
-    input_audio_format: "pcm16",
-    output_audio_format: "pcm16",
-    modalities: ["text", "audio"],
-    turn_detection: null // Manual control via UI
-};
+Configure the AI assistant voice in `backend/app/config.py`:
+
+```python
+SESSION_CONFIG = {
+    "voice": "shimmer",  # Options: alloy, echo, fable, onyx, nova, shimmer
+    ...
+}
 ```
 
-### Adding New Books
-1. Create a directory in `backend/data/books/` with your book ID as the folder name
-2. Add a `metadata.yaml` file with book information (title, coverImageUrl, totalPages, etc.)
-3. Create a `pages/` subdirectory with individual page YAML files (page001.yaml, page002.yaml, etc.)
-4. Follow the structure of existing books (examine any book directory for reference)
-5. Include page images in `frontend/public/speed_racer/images/`
-6. Add audio files for questions and discussions as needed
+### Environment Variables
 
-### Environment Configuration
-The app automatically adjusts CORS settings based on your `ENVIRONMENT` variable:
-- **Development**: Allows `localhost:5173` and `localhost:8000`
-- **Staging/Production**: Configure domains in `backend/app/config.py`
+| Variable | Description | Required |
+|----------|-------------|----------|
+| OPENAI_API_KEY | OpenAI API key | Yes |
+| OPENAI_REALTIME_URL | OpenAI Realtime WebSocket URL | Yes |
+| ENVIRONMENT | development/staging/production | No (default: development) |
+| JWT_SECRET_KEY | Secret for JWT tokens | Production only |
+| AWS_* | AWS credentials for S3 | Production only |
 
-## 🏗️ Architecture
+## Architecture
 
-**Frontend (React)**
+**Frontend (React + Vite)**
 - Book library and reader interface
-- Real-time voice communication
+- Real-time voice communication via WebSocket
 - Progress tracking and state management
 
 **Backend (FastAPI)**
-- Book data API endpoints
+- REST API for book data and authentication
 - WebSocket relay to OpenAI Realtime API
-- Prompt template management
+- S3 integration for file storage (production)
 
 **Data Flow**
-1. Frontend loads book data from backend API
-2. User interacts with voice assistant via WebSocket
-3. Backend relays messages to OpenAI Realtime API
-4. AI responses are streamed back to frontend
-5. Audio playback and text display handled client-side
-
-## 🤝 Acknowledgments
-
-- [OpenAI Realtime API](https://platform.openai.com/docs/guides/realtime)
-- [FastAPI](https://fastapi.tiangolo.com/) 
-- [React](https://react.dev/)
-- [Bootstrap](https://getbootstrap.com/)
-- [Vite](https://vite.dev/)
+1. User authenticates and selects a book
+2. Frontend loads book data from backend API
+3. Voice interactions are relayed through backend to OpenAI
+4. AI responses stream back to frontend for playback
