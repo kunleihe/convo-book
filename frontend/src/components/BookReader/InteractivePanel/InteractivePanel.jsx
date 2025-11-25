@@ -17,6 +17,7 @@ const InteractivePanel = ({
     sharedStream = null // New prop for stream reuse
 }) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+    const [feedbackMessage, setFeedbackMessage] = useState(null);
 
     // Voice chat hooks
     const pageVoiceChat = usePageVoiceChat();
@@ -286,7 +287,7 @@ const InteractivePanel = ({
             <div className="panel-header">
                 <div className="d-flex justify-content-between align-items-center">
                     {/* Removed Chat title as requested */}
-                    <div /> 
+                    <div />
                     {totalQuestions > 1 && questionIndex !== undefined && (
                         <small className="text-muted" style={{ marginLeft: 'auto' }}>Question {questionIndex + 1} of {totalQuestions}</small>
                     )}
@@ -307,13 +308,18 @@ const InteractivePanel = ({
                             </div>
                         </div>
                     )}
-                    
+
                     {getCombinedMessages().map(renderMessage)}
                     <div ref={messagesEndRef} />
                 </div>
 
 
                 <div className="voice-controls">
+                    {feedbackMessage && (
+                        <div className="feedback-message">
+                            {feedbackMessage}
+                        </div>
+                    )}
                     <VoiceButton
                         disabled={!canUseVoiceButton()}
                         sharedStream={sharedStream} // Pass the shared stream to VoiceButton
@@ -327,8 +333,10 @@ const InteractivePanel = ({
                         }}
                         onRecordingComplete={(options = {}) => {
                             if (options.isSilent) {
-                                // Handle silence - send silence message without adding empty bubble
-                                pageVoiceChat.sendSilenceMessage();
+                                // Silence detected - do nothing (don't send to AI, don't save to DB)
+                                console.log('[InteractivePanel] Silence detected, ignoring...');
+                                setFeedbackMessage('No speech detected');
+                                setTimeout(() => setFeedbackMessage(null), 3000);
                             } else {
                                 // Normal flow - commit transcription buffer
                                 if (transcriptionWS.isConnected) {
