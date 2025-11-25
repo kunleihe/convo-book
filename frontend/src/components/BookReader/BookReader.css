@@ -101,6 +101,7 @@
 
 .btn-home:hover {
     background-color: #f8f9fa;
+    border-color: #212529;
 }
 
 .btn-prev:hover,
