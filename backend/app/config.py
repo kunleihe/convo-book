@@ -5,17 +5,11 @@ from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 
-# --- Determine environment and load appropriate .env file ---
-# We perform this before instantiating Settings to ensure environment variables are set
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-env_file = f".env.{ENVIRONMENT}"
-env_path = os.path.join(os.path.dirname(__file__), env_file)
-
-# Fallback to .env if environment-specific file doesn't exist
-if not os.path.exists(env_path):
-    env_path = os.path.join(os.path.dirname(__file__), '.env')
-
-load_dotenv(env_path, override=True)
+# --- Load .env file for local development ---
+# In production/staging, environment variables are set by AWS
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(env_path):
+    load_dotenv(env_path, override=True)
 
 class Settings(BaseSettings):
     # Application Environment
@@ -60,10 +54,6 @@ class Settings(BaseSettings):
                 else:
                     origins.append(self.FRONTEND_URL)
             
-            # 2. For Staging, keep some defaults for debugging (optional)
-            if self.ENVIRONMENT == "staging":
-                origins.append("http://localhost:5173")
-                
             return origins
         else:
             # Development origins (default)
@@ -76,8 +66,8 @@ class Settings(BaseSettings):
         """Validate environment and handle dynamic defaults"""
         # Validation logic
         required_vars = {
-            'staging': ['API_KEY', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET_NAME'],
-            'production': ['API_KEY', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET_NAME']
+            'staging': ['API_KEY', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET_NAME', 'JWT_SECRET_KEY'],
+            'production': ['API_KEY', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'S3_BUCKET_NAME', 'JWT_SECRET_KEY']
         }
         
         # Check required vars for current environment
@@ -101,8 +91,6 @@ class Settings(BaseSettings):
                 if not var_map.get(var_name):
                     missing_vars.append(var_name)
             
-            if self.ENVIRONMENT == "production" and not self.JWT_SECRET_KEY:
-                 missing_vars.append("JWT_SECRET_KEY")
 
         if missing_vars:
             raise ValueError(f"Missing required environment variables for {self.ENVIRONMENT}: {missing_vars}")
