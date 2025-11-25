@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import NavigationBar from './components/Common/NavigationBar';
 import BookLibrary from './components/BookLibrary/BookLibrary';
@@ -23,16 +23,6 @@ function ConditionalNavBar() {
 function App() {
   const { isAuthenticated, loading } = useAuth();
 
-  // Request microphone permission immediately when app loads
-  useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ audio: true })
-      .then(stream => {
-        stream.getTracks().forEach(track => track.stop());
-      })
-      .catch(error => {
-        // Silent fail - user denied permission
-      });
-  }, []);
 
   if (loading) {
     return (
