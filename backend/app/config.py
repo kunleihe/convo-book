@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 # In production/staging, environment variables are set by AWS
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(env_path):
-    load_dotenv(env_path, override=True)
+    # override=False ensures system environment variables (like in AWS) take precedence
+    load_dotenv(env_path, override=False)
 
 class Settings(BaseSettings):
     # Application Environment
