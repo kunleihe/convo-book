@@ -3,19 +3,6 @@
     padding: 2rem 0;
 }
 
-/* Header Section */
-.library-header {
-    text-align: center;
-    margin-bottom: 1rem;
-}
-
-.library-header h1 {
-    font-size: 2rem;
-    font-weight: 600;
-    color: #333333;
-    margin-bottom: 0;
-}
-
 /* Settings Section */
 .library-settings {
     text-align: center;

@@ -13,11 +13,11 @@ import './App.css';
 // Component to conditionally render NavigationBar
 function ConditionalNavBar() {
   const location = useLocation();
-  // Don't show nav bar on device check page
-  if (location.pathname === '/device-check') {
-    return null;
+  // Only show nav bar on Library page (home page)
+  if (location.pathname === '/') {
+    return <NavigationBar />;
   }
-  return <NavigationBar />;
+  return null;
 }
 
 function App() {
@@ -37,7 +37,7 @@ function App() {
   return (
     <div className="App">
       <BrowserRouter>
-        {/* {isAuthenticated && <ConditionalNavBar />} - Removed for full screen redesign */}
+        {isAuthenticated && <ConditionalNavBar />}
         <main className="main-content">
           <Routes>
             <Route

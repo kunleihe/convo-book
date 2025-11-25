@@ -51,12 +51,7 @@ const BookLibrary = () => {
     return (
         <div className="book-library">
             <Container>
-                {/* Header */}
-                <div className="library-header">
-                    <h1>Library</h1>
-                </div>
-
-                {/* Settings */}
+                {/* Settings - Narration toggle commented out for now
                 <div className="library-settings">
                     <Form.Check
                         type="switch"
@@ -66,6 +61,7 @@ const BookLibrary = () => {
                         onChange={(e) => handleNarrationToggle(e.target.checked)}
                     />
                 </div>
+                */}
 
                 {/* Error Display */}
                 {error && (
