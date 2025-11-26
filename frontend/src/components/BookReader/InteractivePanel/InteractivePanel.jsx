@@ -14,7 +14,7 @@ const InteractivePanel = ({
     totalQuestions,
     sharedStream = null // New prop for stream reuse
 }) => {
-    const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+    const [isAudioPlaying, setIsAudioPlaying] = useState(!!question?.audioUrl);
     const [feedbackMessage, setFeedbackMessage] = useState(null);
 
     // Voice chat hooks
