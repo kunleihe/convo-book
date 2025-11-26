@@ -1,6 +1,6 @@
 pageNumber: 7
-imageUrl: /speed-racer/images/page7.png
-narrationAudioUrl: https://example.com/books/speed-racer/narration5.mp3
+imageUrl: /speed-racer/images/page-07.png
+narrationAudioUrl: /speed-racer/audios/narration/page-07.wav
 
 storyText: |
   The three friends looked at Camilla's car. Camilla's car was so cool—and
@@ -16,11 +16,11 @@ questions:
     questionText: | 
       Camila’s car is faster. Let's look closely at Elinor’s car and Camilla’s car to see if we can figure out why Camilla’s car is faster. 
       How is Camilla's car different from Elinor’s car? 
-    audioUrl: /speed-racer/audios/questions/page7_q1.mp3
+    audioUrl: /speed-racer/audios/questions/page-07-q1.mp3
   - id: "q2"
     questionType: open-ended
     questionText: Now here’s something else to think about. What can Elinor and her friends do to make their car go faster? 
-    audioUrl: /speed-racer/audios/questions/page7_q2.mp3
+    audioUrl: /speed-racer/audios/questions/page-07-q2.mp3
     follow-up:
     - What do you think Elinor and her friends should change on their car?
     - If you are building a car, how would you make it go faster?

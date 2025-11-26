@@ -1,6 +1,6 @@
 pageNumber: 22
-imageUrl: /speed-racer/images/page22.png
-narrationAudioUrl: https://example.com/books/speed-racer/narration18.mp3
+imageUrl: /speed-racer/images/page-22.png
+narrationAudioUrl: /speed-racer/audios/narration/page-22.wav
 
 storyText: |
   Olive opened her notebook again. She drew a flying bird and a swimming fish.
@@ -14,7 +14,7 @@ questions:
     questionText: |
       Let’s stop here for a sec and chat about something together. 
       Camilla's car looks like a bird or a fish. What is the same about their shapes?
-    audioUrl: /speed-racer/audios/questions/page22_q1.mp3
+    audioUrl: /speed-racer/audios/questions/page-22-q1.mp3
     answerText: They are both pointy in the front and round in the middle.
     follow-up:
     - What do they look like in the front, pointy or boxy?

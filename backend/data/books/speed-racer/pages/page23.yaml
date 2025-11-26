@@ -1,6 +1,6 @@
 pageNumber: 23
-imageUrl: /speed-racer/images/page23.png
-narrationAudioUrl: https://example.com/books/speed-racer/narration19.mp3
+imageUrl: /speed-racer/images/page-23.png
+narrationAudioUrl: /speed-racer/audios/narration/page-23.wav
 
 storyText: | 
   Mr. Rabbit heard the kids talking about the shapes of fast things. He
@@ -13,7 +13,7 @@ questions:
     questionText: |
       Camilla's car, the bird, and the fish all look pointy in the front and round in the middle.
       What special word did Mr. Rabbit use to describe this shape?
-    audioUrl: /speed-racer/audios/questions/page23_q1.mp3
+    audioUrl: /speed-racer/audios/questions/page-23-q1.mp3
     answerText: Streamlined.
     follow-up:
     - Did Mr. Rabbit call it streamlined or boxy?
@@ -23,5 +23,5 @@ questions:
     questionText: | 
       Another question before we turn the page! 
       What are other things in your life that have a streamlined shape?
-    audioUrl: /speed-racer/audios/questions/page23_q2.mp3
+    audioUrl: /speed-racer/audios/questions/page-23-q2.mp3
     answerText: As long as the child mentions one streamlined thing not covered in the story, such as airplanes, dolphins, boats or ships.

@@ -1,6 +1,6 @@
 pageNumber: 2
-imageUrl: /speed-racer/images/page2.png
-narrationAudioUrl: https://example.com/books/speed-racer/narration2.mp3
+imageUrl: /speed-racer/images/page-02.png
+narrationAudioUrl: /speed-racer/audios/narration/page-02.wav
 
 storyText: |
   Just then, Mr. Rabbit walked over to see the car.
@@ -15,6 +15,6 @@ questions:
     questionText: | 
       Let’s take a moment to chat together! 
       Did you ever ride in a car going really fast? How did it feel?
-    audioUrl: /speed-racer/audios/questions/page2_q1.mp3
+    audioUrl: /speed-racer/audios/questions/page-02-q1.mp3
     follow-up:
     - Imagine you're in a fast car. Will it make you feel excited or a little scared?
