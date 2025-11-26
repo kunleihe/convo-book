@@ -6,6 +6,7 @@ import { loadBookData, getPageData } from '../../utils/bookDataLoader';
 import { saveReadingProgress, clearReadingProgress } from '../../utils/storageUtils';
 import { apiRequest } from '../../utils/api';
 import InteractivePanel from './InteractivePanel/InteractivePanel';
+import { fetchAudioWithRetry, getCachedAudio, cacheAudio } from '../../utils/audioCache';
 import './BookReader.css';
 
 const BookReader = () => {
@@ -25,6 +26,10 @@ const BookReader = () => {
     const [activeQuestion, setActiveQuestion] = useState(null);
     const [chatMessages, setChatMessages] = useState([]);
     const [isQuestionAudioPlaying, setIsQuestionAudioPlaying] = useState(false);
+
+    // Narration audio state
+    const [isNarrationPlaying, setIsNarrationPlaying] = useState(false);
+    const narrationAudioRef = useRef(null);
 
     // Global Media Stream for Page Recording & Chat
     const [globalStream, setGlobalStream] = useState(null);
@@ -86,6 +91,63 @@ const BookReader = () => {
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
     }, [bookData, pageNumber]);
+
+    // Auto-play narration audio when page changes
+    useEffect(() => {
+        if (currentPage && currentPage.narrationAudioUrl) {
+            playNarrationAudio(currentPage.narrationAudioUrl);
+        }
+
+        // Cleanup: stop narration when leaving page
+        return () => {
+            if (narrationAudioRef.current) {
+                narrationAudioRef.current.pause();
+                narrationAudioRef.current = null;
+                setIsNarrationPlaying(false);
+            }
+        };
+    }, [currentPage?.pageNumber]);
+
+    const playNarrationAudio = async (audioUrl) => {
+        try {
+            // Stop any existing narration
+            if (narrationAudioRef.current) {
+                narrationAudioRef.current.pause();
+            }
+
+            // Check cache first
+            let audioBlob = await getCachedAudio(audioUrl);
+
+            if (!audioBlob) {
+                // Fetch from S3 via API
+                audioBlob = await fetchAudioWithRetry(audioUrl);
+                // Cache for future use
+                await cacheAudio(audioUrl, audioBlob);
+            }
+
+            const audioObjectUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioObjectUrl);
+            narrationAudioRef.current = audio;
+
+            audio.onplay = () => setIsNarrationPlaying(true);
+            audio.onended = () => {
+                URL.revokeObjectURL(audioObjectUrl);
+                setIsNarrationPlaying(false);
+                narrationAudioRef.current = null;
+            };
+            audio.onerror = () => {
+                URL.revokeObjectURL(audioObjectUrl);
+                console.error('Narration audio playback failed:', audioUrl);
+                setIsNarrationPlaying(false);
+                narrationAudioRef.current = null;
+            };
+
+            await audio.play();
+        } catch (error) {
+            console.error('Failed to play narration audio:', error);
+            setIsNarrationPlaying(false);
+        }
+    };
 
     // Preload next page image when chat panel opens
     useEffect(() => {
