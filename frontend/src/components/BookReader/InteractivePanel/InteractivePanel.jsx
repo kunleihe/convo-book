@@ -2,8 +2,6 @@ import React, { useEffect, useState } from 'react';
 import VoiceButton from './VoiceButton/VoiceButton';
 import { usePageVoiceChat } from '../../../hooks/usePageVoiceChat';
 import { useTranscriptionWebSocket } from '../../../hooks/useTranscriptionWebSocket';
-import avatarImage from '../../../assets/bot-avatar.png';
-import userAvatarImage from '../../../assets/user-avatar.png';
 import { fetchAudioWithRetry, getCachedAudio, cacheAudio } from '../../../utils/audioCache';
 import './InteractivePanel.css';
 
@@ -206,78 +204,9 @@ const InteractivePanel = ({
         }
     };
 
-    // Combine messages from different sources
-    const getCombinedMessages = () => {
-        const combinedMessages = [];
-
-        // Add conversation messages (both AI and user)
-        pageVoiceChat.conversationMessages.forEach(msg => {
-            combinedMessages.push({
-                id: msg.id,
-                content: msg.content,
-                isUser: msg.isUser,
-                timestamp: msg.timestamp,
-                type: msg.isUser ? 'user-conversation' : 'ai-response'
-            });
-        });
-
-        // Add streaming AI response if currently speaking
-        if (pageVoiceChat.isAiSpeaking && pageVoiceChat.currentStreamingTranscript) {
-            combinedMessages.push({
-                id: `streaming-${pageVoiceChat.streamingResponseId}`,
-                content: pageVoiceChat.currentStreamingTranscript,
-                isUser: false,
-                timestamp: new Date(),
-                type: 'ai-streaming'
-            });
-        }
-
-        // Add user transcription messages with proper timestamps
-        transcriptionWS.transcriptions.forEach((transcriptionObj, index) => {
-            if (transcriptionObj.text && transcriptionObj.text.includes('[TRANSCRIPTION]')) {
-                const cleanText = transcriptionObj.text.replace('[TRANSCRIPTION]', '').trim();
-                if (cleanText) {
-                    combinedMessages.push({
-                        id: `transcription-${index}`,
-                        content: cleanText,
-                        isUser: true,
-                        timestamp: transcriptionObj.timestamp,
-                        type: 'user-transcription'
-                    });
-                }
-            }
-        });
-
-        // Sort by timestamp
-        return combinedMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    };
-
-    const renderMessage = (message) => {
-        const isUser = message.isUser;
-        // const avatarSrc = isUser ? userAvatarImage : avatarImage; // Avatars removed
-        const messageClass = isUser ? 'user-message' : 'ai-message';
-        const bubbleClass = isUser ? 'user-text' : 'ai-text';
-
-        return (
-            <div key={message.id} className={`chat-message ${messageClass}`}>
-                {/* Avatar container removed */}
-                <div className={`message-text ${bubbleClass}`}>
-                    {message.content}
-                </div>
-            </div>
-        );
-    };
-
-    const messagesEndRef = React.useRef(null);
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    // Auto-scroll on new messages
-    useEffect(() => {
-        scrollToBottom();
-    }, [pageVoiceChat.conversationMessages, pageVoiceChat.currentStreamingTranscript, transcriptionWS.transcriptions]);
+    // Determine which avatar GIF to show
+    const isSpeaking = isAudioPlaying || pageVoiceChat.isAiSpeaking;
+    const avatarGif = isSpeaking ? '/speak.gif' : '/listen.gif';
 
     return (
         <div className="interactive-panel">
@@ -297,22 +226,13 @@ const InteractivePanel = ({
             </div>
 
             <div className="panel-content">
-                <div className="chat-messages">
-                    {question && (
-                        <div className="question-section">
-                            <div className="chat-message ai-message">
-                                {/* Avatar container removed */}
-                                <div className="message-text ai-text">
-                                    {question.questionText}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {getCombinedMessages().map(renderMessage)}
-                    <div ref={messagesEndRef} />
+                <div className="avatar-display">
+                    <img 
+                        src={avatarGif} 
+                        alt={isSpeaking ? "Speaking" : "Listening"} 
+                        className="avatar-gif"
+                    />
                 </div>
-
 
                 <div className="voice-controls">
                     {feedbackMessage && (
