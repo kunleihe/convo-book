@@ -39,6 +39,9 @@ const InteractivePanel = ({
         stopReason: null // 'speech_end' | 'timeout' | 'manual'
     });
 
+    // Track previous AI speaking state
+    const prevIsAiSpeakingRef = useRef(false);
+
     // Voice chat hooks
     const pageVoiceChat = usePageVoiceChat();
 
@@ -69,17 +72,17 @@ const InteractivePanel = ({
         // onAudioRecorded
         (pcm16Data, options = {}) => {
             console.log('[InteractivePanel] Recording complete. Reason:', vadStateRef.current.stopReason);
-            
+
             if (vadStateRef.current.stopReason === 'timeout') {
                 // Case: No response timeout
                 console.log('[InteractivePanel] No response detected (timeout)');
                 setFeedbackMessage('No response detected');
                 setTimeout(() => setFeedbackMessage(null), 3000);
-                
+
                 // Send [no response] to AI (if supported by backend/prompt)
                 // For now, we can send a special event or just ignore. 
                 // Requirement says: send [no response] to AI and S3.
-                
+
                 // To write to S3: The transcriptionWS usually handles this via audio chunks. 
                 // But since we have no audio worth saving, we might need to send a text message?
                 // Current architecture relies on audio. 
@@ -89,16 +92,16 @@ const InteractivePanel = ({
                 // We can simulate this by sending a text message if the hook supports it, 
                 // OR rely on the fact that we send nothing and the AI might not reply? 
                 // Actually the requirement says "send [no response] to AI".
-                // Assuming pageVoiceChat has a sendMessage method for text:
-                 if (pageVoiceChat.sendTextMessage) {
-                    pageVoiceChat.sendTextMessage("[no response]");
+                // Send silence message to AI
+                if (pageVoiceChat.sendSilenceMessage) {
+                    pageVoiceChat.sendSilenceMessage();
                 }
-                
+
             } else {
                 // Case: Normal speech end or silence (but logic says if VAD triggered, it's speech)
                 if (options.isSilent && !vadStateRef.current.hasSpoken) {
                     // Fallback if VAD didn't catch it but hook thought it was silent
-                     console.log('[InteractivePanel] Audio analyzed as silent');
+                    console.log('[InteractivePanel] Audio analyzed as silent');
                 } else {
                     // Normal flow
                     pageVoiceChat.sendAudioData(pcm16Data);
@@ -140,9 +143,9 @@ const InteractivePanel = ({
                 } else {
                     // User hasn't spoken yet, check for timeout
                     if (now - vadStateRef.current.startTime > NO_RESPONSE_TIMEOUT) {
-                         console.log('[InteractivePanel] No response timeout (10s)');
-                         vadStateRef.current.stopReason = 'timeout';
-                         stopRecording();
+                        console.log('[InteractivePanel] No response timeout (10s)');
+                        vadStateRef.current.stopReason = 'timeout';
+                        stopRecording();
                     }
                 }
             }
@@ -199,6 +202,49 @@ const InteractivePanel = ({
             updateQuestionPrompt(bookId, pageNumber, question.id);
         }
     }, [question?.id]); // Only trigger when question ID changes
+
+    // Automatic flow control: Recording & Navigation
+    useEffect(() => {
+        // Only trigger when AI stops speaking (falling edge)
+        if (prevIsAiSpeakingRef.current && !pageVoiceChat.isAiSpeaking) {
+            const messages = pageVoiceChat.conversationMessages;
+            const aiMessages = messages.filter(m => !m.isUser);
+            const lastMessage = messages[messages.length - 1];
+
+            let shouldTurnPage = false;
+
+            // 1. Fallback: AI message count == 3 -> Force next page
+            if (aiMessages.length === 3) {
+                console.log('[InteractivePanel] Max AI turns (3) reached, triggering next page');
+                shouldTurnPage = true;
+            }
+
+            // 2. AI Command: "next page" in last message
+            if (lastMessage && !lastMessage.isUser && lastMessage.content && lastMessage.content.toLowerCase().includes("next page")) {
+                console.log('[InteractivePanel] AI requested next page');
+                shouldTurnPage = true;
+            }
+
+            if (shouldTurnPage) {
+                // Trigger navigation
+                if (onNavigateNext) {
+                    onNavigateNext();
+                }
+            } else {
+                // Normal flow: continue conversation -> Start VAD
+                console.log('[InteractivePanel] AI finished speaking, starting VAD...');
+                vadStateRef.current = {
+                    startTime: Date.now(),
+                    hasSpoken: false,
+                    lastSpeechTime: Date.now(),
+                    stopReason: null
+                };
+                startRecording();
+            }
+        }
+        // Update ref for next render
+        prevIsAiSpeakingRef.current = pageVoiceChat.isAiSpeaking;
+    }, [pageVoiceChat.isAiSpeaking, pageVoiceChat.conversationMessages, startRecording, onNavigateNext]);
 
     useEffect(() => {
         if (question && question.audioUrl) {
@@ -286,7 +332,7 @@ const InteractivePanel = ({
                 URL.revokeObjectURL(audioObjectUrl);
                 // Notify parent and update local state that audio has ended
                 updateAudioState(false);
-                
+
                 // Start VAD Recording automatically
                 console.log('[InteractivePanel] Question audio ended, starting VAD...');
                 vadStateRef.current = {
@@ -337,9 +383,9 @@ const InteractivePanel = ({
 
             <div className="panel-content">
                 <div className="avatar-display">
-                    <img 
-                        src={avatarGif} 
-                        alt={isSpeaking ? "Speaking" : "Listening"} 
+                    <img
+                        src={avatarGif}
+                        alt={isSpeaking ? "Speaking" : "Listening"}
                         className="avatar-gif"
                     />
                 </div>
