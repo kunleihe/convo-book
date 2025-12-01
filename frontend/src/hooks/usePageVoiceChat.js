@@ -663,7 +663,7 @@ export const usePageVoiceChat = () => {
                     item: {
                         type: "message",
                         role: "user",
-                        content: [{ type: "input_text", text: "[silence]" }]
+                        content: [{ type: "input_text", text: "[no response]" }]
                     }
                 };
                 websocketRef.current.send(JSON.stringify(messageItem));

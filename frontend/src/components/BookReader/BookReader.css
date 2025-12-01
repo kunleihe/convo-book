@@ -36,7 +36,7 @@
     /* Increased height for more spacing */
     background: #ffffff;
     /* Solid background */
-    display: flex;
+    display: none; /* Hidden as requested */
     justify-content: center;
     gap: 1000px;
     align-items: center;

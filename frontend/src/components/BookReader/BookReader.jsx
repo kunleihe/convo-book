@@ -134,6 +134,13 @@ const BookReader = () => {
                 URL.revokeObjectURL(audioObjectUrl);
                 setIsNarrationPlaying(false);
                 narrationAudioRef.current = null;
+
+                // Automatic flow after narration:
+                // If questions exist -> Open panel (via handleNextPage)
+                // If no questions -> Go to next page (via handleNextPage)
+                setTimeout(() => {
+                    handleNextPage();
+                }, 500);
             };
             audio.onerror = () => {
                 URL.revokeObjectURL(audioObjectUrl);
@@ -485,6 +492,7 @@ const BookReader = () => {
                             questionIndex={currentQuestionIndex}
                             totalQuestions={currentQuestions.length}
                             sharedStream={globalStream}
+                            onNavigateNext={handleNextPage}
                         />
                     </div>
                 </Draggable>

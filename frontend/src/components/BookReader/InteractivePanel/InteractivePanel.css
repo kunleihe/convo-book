@@ -183,6 +183,28 @@
     }
 }
 
+.recording-indicator {
+    color: #dc3545;
+    font-weight: 600;
+    animation: pulse 1.5s infinite;
+    font-size: 0.9rem;
+    margin-top: 8px;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.6;
+    }
+}
+
 .discussion-section {
     flex: 1;
     display: flex;

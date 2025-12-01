@@ -1,9 +1,22 @@
-import React, { useEffect, useState } from 'react';
-import VoiceButton from './VoiceButton/VoiceButton';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { usePageVoiceChat } from '../../../hooks/usePageVoiceChat';
 import { useTranscriptionWebSocket } from '../../../hooks/useTranscriptionWebSocket';
 import { fetchAudioWithRetry, getCachedAudio, cacheAudio } from '../../../utils/audioCache';
+import { useAudioRecorder } from '../../../hooks/useAudioRecorder';
 import './InteractivePanel.css';
+
+// VAD Configuration
+const VAD_THRESHOLD = 500; // RMS threshold for speech detection (Int16)
+const SILENCE_DURATION = 2000; // 2 seconds of silence to end speech
+const NO_RESPONSE_TIMEOUT = 10000; // 10 seconds total timeout for no response
+
+const calculateRMS = (pcmData) => {
+    let sum = 0;
+    for (let i = 0; i < pcmData.length; i++) {
+        sum += pcmData[i] * pcmData[i];
+    }
+    return Math.sqrt(sum / pcmData.length);
+};
 
 const InteractivePanel = ({
     question,
@@ -12,10 +25,19 @@ const InteractivePanel = ({
     pageNumber,
     questionIndex,
     totalQuestions,
-    sharedStream = null // New prop for stream reuse
+    sharedStream = null, // New prop for stream reuse
+    onNavigateNext // Callback to trigger navigation/next question
 }) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(!!question?.audioUrl);
     const [feedbackMessage, setFeedbackMessage] = useState(null);
+
+    // VAD State Refs
+    const vadStateRef = useRef({
+        startTime: 0,
+        hasSpoken: false,
+        lastSpeechTime: 0,
+        stopReason: null // 'speech_end' | 'timeout' | 'manual'
+    });
 
     // Voice chat hooks
     const pageVoiceChat = usePageVoiceChat();
@@ -37,6 +59,96 @@ const InteractivePanel = ({
     };
 
     const transcriptionWS = useTranscriptionWebSocket(bookId, pageNumber, handleTranscriptionComplete);
+
+    // Audio Recorder with VAD
+    const {
+        isRecording,
+        startRecording,
+        stopRecording,
+    } = useAudioRecorder(
+        // onAudioRecorded
+        (pcm16Data, options = {}) => {
+            console.log('[InteractivePanel] Recording complete. Reason:', vadStateRef.current.stopReason);
+            
+            if (vadStateRef.current.stopReason === 'timeout') {
+                // Case: No response timeout
+                console.log('[InteractivePanel] No response detected (timeout)');
+                setFeedbackMessage('No response detected');
+                setTimeout(() => setFeedbackMessage(null), 3000);
+                
+                // Send [no response] to AI (if supported by backend/prompt)
+                // For now, we can send a special event or just ignore. 
+                // Requirement says: send [no response] to AI and S3.
+                
+                // To write to S3: The transcriptionWS usually handles this via audio chunks. 
+                // But since we have no audio worth saving, we might need to send a text message?
+                // Current architecture relies on audio. 
+                // Let's skip sending empty audio for now to avoid noise, 
+                // unless we want to send a synthetic "silence" buffer with a metadata tag?
+                // The prompt instructions say "If 10s no response, send [no response]".
+                // We can simulate this by sending a text message if the hook supports it, 
+                // OR rely on the fact that we send nothing and the AI might not reply? 
+                // Actually the requirement says "send [no response] to AI".
+                // Assuming pageVoiceChat has a sendMessage method for text:
+                 if (pageVoiceChat.sendTextMessage) {
+                    pageVoiceChat.sendTextMessage("[no response]");
+                }
+                
+            } else {
+                // Case: Normal speech end or silence (but logic says if VAD triggered, it's speech)
+                if (options.isSilent && !vadStateRef.current.hasSpoken) {
+                    // Fallback if VAD didn't catch it but hook thought it was silent
+                     console.log('[InteractivePanel] Audio analyzed as silent');
+                } else {
+                    // Normal flow
+                    pageVoiceChat.sendAudioData(pcm16Data);
+                    if (transcriptionWS.isConnected) {
+                        // Commit the buffer to finalize transcription
+                        setTimeout(() => {
+                            transcriptionWS.commitAudioBuffer();
+                        }, 100);
+                    }
+                }
+            }
+        },
+        // onAudioChunk (VAD Logic Here)
+        (pcm16Data) => {
+            // 1. Send to transcription service (always stream)
+            if (transcriptionWS.isConnected) {
+                transcriptionWS.sendAudioData(pcm16Data);
+            }
+
+            // 2. VAD Analysis
+            const rms = calculateRMS(pcm16Data);
+            const now = Date.now();
+
+            if (rms > VAD_THRESHOLD) {
+                if (!vadStateRef.current.hasSpoken) {
+                    console.log('[InteractivePanel] Speech detected!');
+                    vadStateRef.current.hasSpoken = true;
+                }
+                vadStateRef.current.lastSpeechTime = now;
+            } else {
+                // Silence
+                if (vadStateRef.current.hasSpoken) {
+                    // User has spoken, check for silence duration
+                    if (now - vadStateRef.current.lastSpeechTime > SILENCE_DURATION) {
+                        console.log('[InteractivePanel] End of speech detected (2s silence)');
+                        vadStateRef.current.stopReason = 'speech_end';
+                        stopRecording();
+                    }
+                } else {
+                    // User hasn't spoken yet, check for timeout
+                    if (now - vadStateRef.current.startTime > NO_RESPONSE_TIMEOUT) {
+                         console.log('[InteractivePanel] No response timeout (10s)');
+                         vadStateRef.current.stopReason = 'timeout';
+                         stopRecording();
+                    }
+                }
+            }
+        },
+        sharedStream
+    );
 
     // Connect when panel opens with a question
     useEffect(() => {
@@ -109,18 +221,6 @@ const InteractivePanel = ({
         }
     };
 
-    const canUseVoiceButton = () => {
-        // Disable voice button if question audio is playing, AI is speaking, or not connected
-        const canUse = !isAudioPlaying && !pageVoiceChat.isAiSpeaking && pageVoiceChat.isConnected;
-        console.log('[InteractivePanel] Voice button state:', {
-            isAudioPlaying,
-            isAiSpeaking: pageVoiceChat.isAiSpeaking,
-            isConnected: pageVoiceChat.isConnected,
-            canUse
-        });
-        return canUse;
-    };
-
     // Update AI prompt for new question without reconnecting
     const updateQuestionPrompt = async (bookId, pageNumber, questionId) => {
         try {
@@ -182,10 +282,20 @@ const InteractivePanel = ({
             const audioObjectUrl = URL.createObjectURL(audioBlob);
             const audio = new Audio(audioObjectUrl);
 
-            audio.onended = () => {
+            audio.onended = async () => {
                 URL.revokeObjectURL(audioObjectUrl);
                 // Notify parent and update local state that audio has ended
                 updateAudioState(false);
+                
+                // Start VAD Recording automatically
+                console.log('[InteractivePanel] Question audio ended, starting VAD...');
+                vadStateRef.current = {
+                    startTime: Date.now(),
+                    hasSpoken: false,
+                    lastSpeechTime: Date.now(),
+                    stopReason: null
+                };
+                await startRecording();
             };
             audio.onerror = () => {
                 URL.revokeObjectURL(audioObjectUrl);
@@ -240,33 +350,11 @@ const InteractivePanel = ({
                             {feedbackMessage}
                         </div>
                     )}
-                    <VoiceButton
-                        disabled={!canUseVoiceButton()}
-                        sharedStream={sharedStream} // Pass the shared stream to VoiceButton
-                        onAudioRecorded={(pcm16Data) => {
-                            pageVoiceChat.sendAudioData(pcm16Data);
-                        }}
-                        onAudioChunk={(pcm16Data) => {
-                            if (transcriptionWS.isConnected) {
-                                transcriptionWS.sendAudioData(pcm16Data);
-                            }
-                        }}
-                        onRecordingComplete={(options = {}) => {
-                            if (options.isSilent) {
-                                // Silence detected - do nothing (don't send to AI, don't save to DB)
-                                console.log('[InteractivePanel] Silence detected, ignoring...');
-                                setFeedbackMessage('No speech detected');
-                                setTimeout(() => setFeedbackMessage(null), 3000);
-                            } else {
-                                // Normal flow - commit transcription buffer
-                                if (transcriptionWS.isConnected) {
-                                    setTimeout(() => {
-                                        transcriptionWS.commitAudioBuffer();
-                                    }, 100);
-                                }
-                            }
-                        }}
-                    />
+                    {isRecording && (
+                        <div className="recording-indicator">
+                            Listening...
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
