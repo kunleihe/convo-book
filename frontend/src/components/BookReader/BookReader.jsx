@@ -31,6 +31,7 @@ const BookReader = () => {
     const [globalStream, setGlobalStream] = useState(null);
     const mediaRecorderRef = useRef(null);
     const recordedChunksRef = useRef([]);
+    const narrationAudioRef = useRef(null);
 
     useEffect(() => {
         loadCurrentBook();
@@ -51,6 +52,33 @@ const BookReader = () => {
             loadCurrentPage();
         }
     }, [bookData, pageNumber]);
+
+    useEffect(() => {
+        // 1. Stop previous narration if active
+        if (narrationAudioRef.current) {
+            narrationAudioRef.current.pause();
+            narrationAudioRef.current = null;
+        }
+
+        // 2. Play new narration if available
+        if (currentPage && currentPage.narrationAudioUrl) {
+            const audio = new Audio(currentPage.narrationAudioUrl);
+            narrationAudioRef.current = audio;
+
+            // Play audio
+            audio.play().catch(err => {
+                console.error("Audio playback error:", err);
+            });
+        }
+
+        // 3. Cleanup on unmount or page change
+        return () => {
+            if (narrationAudioRef.current) {
+                narrationAudioRef.current.pause();
+                narrationAudioRef.current = null;
+            }
+        };
+    }, [currentPage]);
 
     // Page Recording Logic: Start/Stop on page change
     useEffect(() => {
