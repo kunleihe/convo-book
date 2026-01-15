@@ -10,6 +10,7 @@ import './InteractivePanel.css';
 const InteractivePanel = ({
     question,
     onAudioPlayingChange,
+    onUserResponded,
     bookId,
     pageNumber,
     questionIndex,
@@ -39,6 +40,25 @@ const InteractivePanel = ({
     };
 
     const transcriptionWS = useTranscriptionWebSocket(bookId, pageNumber, handleTranscriptionComplete);
+
+    // Check for user response to enable next button
+    useEffect(() => {
+        if (onUserResponded) {
+            // Check transcriptions for any user text
+            const hasTranscription = transcriptionWS.transcriptions.some(t => {
+                const text = t.text || '';
+                return text.includes('[TRANSCRIPTION]') && text.replace('[TRANSCRIPTION]', '').trim().length > 0;
+            });
+
+            // Check conversation messages for user messages
+            const hasUserMessage = pageVoiceChat.conversationMessages.some(msg => msg.isUser);
+
+            if (hasTranscription || hasUserMessage) {
+                console.log('[InteractivePanel] User response detected, enabling navigation');
+                onUserResponded(true);
+            }
+        }
+    }, [transcriptionWS.transcriptions, pageVoiceChat.conversationMessages, onUserResponded]);
 
     // Connect when panel opens with a question
     useEffect(() => {

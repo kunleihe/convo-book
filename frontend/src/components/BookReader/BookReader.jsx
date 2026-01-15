@@ -25,6 +25,7 @@ const BookReader = () => {
     const [activeQuestion, setActiveQuestion] = useState(null);
     const [chatMessages, setChatMessages] = useState([]);
     const [isQuestionAudioPlaying, setIsQuestionAudioPlaying] = useState(false);
+    const [hasUserResponded, setHasUserResponded] = useState(false);
 
     // Global Media Stream for Page Recording & Chat
     const [globalStream, setGlobalStream] = useState(null);
@@ -274,6 +275,7 @@ const BookReader = () => {
             setActiveQuestion(pageQuestions[0]);
             setShowChatPanel(true);
             setChatMessages([]);
+            setHasUserResponded(false);
             return;
         }
 
@@ -283,6 +285,7 @@ const BookReader = () => {
             setCurrentQuestionIndex(nextIndex);
             setActiveQuestion(currentQuestions[nextIndex]);
             setChatMessages([]); // Clear chat for new question
+            setHasUserResponded(false);
             return;
         }
 
@@ -313,6 +316,12 @@ const BookReader = () => {
         if (isQuestionAudioPlaying) {
             return false;
         }
+
+        // If chat panel is open, require user response before proceeding
+        if (showChatPanel && !hasUserResponded) {
+            return false;
+        }
+
         // Always allow action - button handles navigation or chat panel
         return true;
     };
@@ -433,6 +442,7 @@ const BookReader = () => {
                             question={activeQuestion}
                             messages={chatMessages}
                             onAudioPlayingChange={setIsQuestionAudioPlaying}
+                            onUserResponded={() => setHasUserResponded(true)}
                             bookId={bookId}
                             pageNumber={parseInt(pageNumber, 10)}
                             questionIndex={currentQuestionIndex}
