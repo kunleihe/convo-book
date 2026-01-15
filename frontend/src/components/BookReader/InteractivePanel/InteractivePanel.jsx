@@ -63,6 +63,12 @@ const InteractivePanel = ({
 
     const transcriptionWS = useTranscriptionWebSocket(bookId, pageNumber, handleTranscriptionComplete);
 
+    // Use a ref to access the latest transcriptionWS state inside callbacks
+    const transcriptionWSRef = useRef(transcriptionWS);
+    useEffect(() => {
+        transcriptionWSRef.current = transcriptionWS;
+    }, [transcriptionWS]);
+
     // Audio Recorder with VAD
     const {
         isRecording,
@@ -71,6 +77,7 @@ const InteractivePanel = ({
     } = useAudioRecorder(
         // onAudioRecorded
         (pcm16Data, options = {}) => {
+            console.log('[Debug-Check] onAudioRecorded sees isConnected:', transcriptionWS.isConnected);
             console.log('[InteractivePanel] Recording complete. Reason:', vadStateRef.current.stopReason);
 
             if (vadStateRef.current.stopReason === 'timeout') {
@@ -105,10 +112,10 @@ const InteractivePanel = ({
                 } else {
                     // Normal flow
                     pageVoiceChat.sendAudioData(pcm16Data);
-                    if (transcriptionWS.isConnected) {
+                    if (transcriptionWSRef.current && transcriptionWSRef.current.isConnected) {
                         // Commit the buffer to finalize transcription
                         setTimeout(() => {
-                            transcriptionWS.commitAudioBuffer();
+                            transcriptionWSRef.current.commitAudioBuffer();
                         }, 100);
                     }
                 }
@@ -116,9 +123,10 @@ const InteractivePanel = ({
         },
         // onAudioChunk (VAD Logic Here)
         (pcm16Data) => {
+            console.log('[Debug-Check] onAudioChunk sees isConnected:', transcriptionWSRef.current?.isConnected);
             // 1. Send to transcription service (always stream)
-            if (transcriptionWS.isConnected) {
-                transcriptionWS.sendAudioData(pcm16Data);
+            if (transcriptionWSRef.current && transcriptionWSRef.current.isConnected) {
+                transcriptionWSRef.current.sendAudioData(pcm16Data);
             }
 
             // 2. VAD Analysis
@@ -220,7 +228,7 @@ const InteractivePanel = ({
             }
 
             // 2. AI Command: "next page" in last message
-            if (lastMessage && !lastMessage.isUser && lastMessage.content && lastMessage.content.toLowerCase().includes("next page")) {
+            if (lastMessage && !lastMessage.isUser && lastMessage.content && lastMessage.content.toLowerCase().includes("keep going")) {
                 console.log('[InteractivePanel] AI requested next page');
                 shouldTurnPage = true;
             }
