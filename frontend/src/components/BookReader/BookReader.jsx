@@ -357,6 +357,21 @@ const BookReader = () => {
         return currentPageNum > 1;
     };
 
+    const shouldShowQuestionBadge = () => {
+        const pageQuestions = currentPage?.questions || [];
+        if (pageQuestions.length === 0) return false;
+
+        // If chat panel is not open, we haven't started questions yet, so show the badge
+        if (!showChatPanel) return true;
+
+        // If we are in the chat panel
+        // If there are more questions after this one, show badge
+        if (currentQuestionIndex < currentQuestions.length - 1) return true;
+
+        // If this is the last question, show badge only if audio is still playing
+        return isQuestionAudioPlaying;
+    };
+
     if (loading) {
         return (
             <Container className="d-flex justify-content-center align-items-center" style={{ minHeight: '80vh' }}>
@@ -456,7 +471,7 @@ const BookReader = () => {
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M5 12h14M12 5l7 7-7 7" />
                         </svg>
-                        {currentPage?.questions && currentPage.questions.length > 0 && (
+                        {shouldShowQuestionBadge() && (
                             <span className="question-badge">?</span>
                         )}
                     </button>

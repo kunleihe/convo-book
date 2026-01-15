@@ -92,6 +92,11 @@ const InteractivePanel = ({
 
     useEffect(() => {
         if (question && question.audioUrl) {
+            // Update state immediately to avoid UI flicker
+            setIsAudioPlaying(true);
+            if (onAudioPlayingChange) {
+                onAudioPlayingChange(true);
+            }
             playQuestionAudioAsync(question.audioUrl);
         }
 
@@ -112,12 +117,34 @@ const InteractivePanel = ({
     };
 
     const canUseVoiceButton = () => {
+        // Check for "keep going" in AI response
+        const keepGoingRegex = /keep going/i;
+        let hasKeepGoing = false;
+
+        // Check streaming transcript
+        if (pageVoiceChat.currentStreamingTranscript && keepGoingRegex.test(pageVoiceChat.currentStreamingTranscript)) {
+            hasKeepGoing = true;
+        }
+
+        // Check last AI message
+        if (!hasKeepGoing && pageVoiceChat.conversationMessages.length > 0) {
+            const lastMessage = pageVoiceChat.conversationMessages[pageVoiceChat.conversationMessages.length - 1];
+            if (!lastMessage.isUser && keepGoingRegex.test(lastMessage.content)) {
+                hasKeepGoing = true;
+            }
+        }
+
+        if (hasKeepGoing) {
+            return false;
+        }
+
         // Disable voice button if question audio is playing, AI is speaking, or not connected
         const canUse = !isAudioPlaying && !pageVoiceChat.isAiSpeaking && pageVoiceChat.isConnected;
         console.log('[InteractivePanel] Voice button state:', {
             isAudioPlaying,
             isAiSpeaking: pageVoiceChat.isAiSpeaking,
             isConnected: pageVoiceChat.isConnected,
+            hasKeepGoing,
             canUse
         });
         return canUse;
