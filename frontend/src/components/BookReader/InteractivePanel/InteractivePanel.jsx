@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import VoiceButton from './VoiceButton/VoiceButton';
-import { usePageVoiceChat } from '../../../hooks/usePageVoiceChat';
+import { useHTTPChat } from '../../../hooks/useHTTPChat';
 import { useTranscriptionWebSocket } from '../../../hooks/useTranscriptionWebSocket';
-import avatarImage from '../../../assets/bot-avatar.png';
-import userAvatarImage from '../../../assets/user-avatar.png';
 import { fetchAudioWithRetry, getCachedAudio, cacheAudio } from '../../../utils/audioCache';
 import './InteractivePanel.css';
 
@@ -14,270 +12,123 @@ const InteractivePanel = ({
     pageNumber,
     questionIndex,
     totalQuestions,
-    sharedStream = null // New prop for stream reuse
+    sharedStream = null,
+    pageText = '',
+    onQuestionComplete,
 }) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(!!question?.audioUrl);
-    const [feedbackMessage, setFeedbackMessage] = useState(null);
+    // Ghost bubble: real-time transcription delta while recording
+    const [currentUserTranscript, setCurrentUserTranscript] = useState('');
+    // Gate between recording-stop and submit completing to prevent double presses
+    const [isProcessingTranscript, setIsProcessingTranscript] = useState(false);
 
-    // Voice chat hooks
-    const pageVoiceChat = usePageVoiceChat();
+    const messagesEndRef = useRef(null);
 
-    // Create callback function to forward transcription completion to main voice chat
-    const handleTranscriptionComplete = (transcriptionMessage) => {
-        console.log('[InteractivePanel] Forwarding transcription completion to main voice chat');
-        // Simulate the transcription completion event for the main voice chat WebSocket
-        if (pageVoiceChat.websocketRef && pageVoiceChat.websocketRef.current) {
-            // Create a synthetic event that the main WebSocket can handle
-            const syntheticEvent = {
-                data: JSON.stringify(transcriptionMessage)
-            };
-            // Call the main WebSocket's message handler directly
-            if (pageVoiceChat.handleWebSocketMessage) {
-                pageVoiceChat.handleWebSocketMessage(syntheticEvent);
-            }
-        }
-    };
+    // --- Hooks ---
+    const httpChat = useHTTPChat();
 
-    const transcriptionWS = useTranscriptionWebSocket(bookId, pageNumber, handleTranscriptionComplete);
+    const transcriptionWS = useTranscriptionWebSocket(
+        useCallback((delta) => setCurrentUserTranscript((prev) => prev + delta), [])
+    );
 
-    // Connect when panel opens with a question
+    // --- Lifecycle: initialize on question/page change ---
     useEffect(() => {
-        let mounted = true;
-
-        if (question && bookId && pageNumber && mounted) {
-            console.log('[InteractivePanel] Connecting voice chat for page:', pageNumber);
-
-            // Clear previous transcriptions
-            transcriptionWS.clearTranscriptions();
-
-            // Connect both services
-            if (question && question.id) {
-                pageVoiceChat.connect(bookId, pageNumber, question.id);
-            } else {
-                console.warn('[InteractivePanel] Question missing ID, cannot connect voice chat');
-            }
+        if (question && bookId && pageNumber) {
+            transcriptionWS.clearAccumulatedTranscript();
+            setCurrentUserTranscript('');
+            httpChat.initialize(bookId, pageNumber, question, pageText);
             transcriptionWS.connect();
         }
-
-        // Cleanup connections when panel closes or page changes
         return () => {
-            mounted = false;
-            // Add a small delay to prevent race conditions
-            setTimeout(() => {
-                console.log('[InteractivePanel] Disconnecting voice chat');
-                pageVoiceChat.disconnect();
-                transcriptionWS.disconnect();
-            }, 100);
+            transcriptionWS.disconnect();
         };
-    }, [bookId, pageNumber]); // Keep connection stable for all questions on the same page
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [question?.id, bookId, pageNumber]);
 
-    // Handle question-specific updates when switching questions
+    // --- Notify parent when question is complete ---
     useEffect(() => {
-        if (question && question.id && pageVoiceChat.isConnected && bookId && pageNumber) {
-            console.log('[InteractivePanel] Updating for new question:', question.id);
-
-            // Clear conversation messages for new question
-            pageVoiceChat.clearConversation();
-
-            // Clear transcriptions for new question
-            transcriptionWS.clearTranscriptions();
-
-            // Update the question context in the voice chat hook
-            pageVoiceChat.updateQuestionContext(question.id);
-
-            // Update the AI prompt for the new question
-            updateQuestionPrompt(bookId, pageNumber, question.id);
+        if (httpChat.questionComplete) {
+            onQuestionComplete?.();
         }
-    }, [question?.id]); // Only trigger when question ID changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [httpChat.questionComplete]);
 
+    // --- Question audio playback ---
     useEffect(() => {
-        if (question && question.audioUrl) {
+        if (question?.audioUrl) {
             playQuestionAudioAsync(question.audioUrl);
         }
-
-        // Cleanup: reset audio state when content changes
         return () => {
-            if (onAudioPlayingChange) {
-                onAudioPlayingChange(false);
-            }
-            setIsAudioPlaying(false);
+            updateAudioState(false);
         };
     }, [question]);
 
+    // --- Auto-scroll ---
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [httpChat.conversationMessages, currentUserTranscript]);
+
+    // --- Helpers ---
     const updateAudioState = (playing) => {
         setIsAudioPlaying(playing);
-        if (onAudioPlayingChange) {
-            onAudioPlayingChange(playing);
-        }
-    };
-
-    const canUseVoiceButton = () => {
-        // Disable voice button if question audio is playing, AI is speaking, or not connected
-        const canUse = !isAudioPlaying && !pageVoiceChat.isAiSpeaking && pageVoiceChat.isConnected;
-        console.log('[InteractivePanel] Voice button state:', {
-            isAudioPlaying,
-            isAiSpeaking: pageVoiceChat.isAiSpeaking,
-            isConnected: pageVoiceChat.isConnected,
-            canUse
-        });
-        return canUse;
-    };
-
-    // Update AI prompt for new question without reconnecting
-    const updateQuestionPrompt = async (bookId, pageNumber, questionId) => {
-        try {
-            console.log(`[InteractivePanel] Fetching new prompt for question ${questionId}`);
-            const API_BASE_URL = import.meta.env.VITE_API_URL || '';
-            const promptResponse = await fetch(`${API_BASE_URL}/api/books/${bookId}/page/${pageNumber}/question/${questionId}/prompt`);
-
-            if (!promptResponse.ok) {
-                throw new Error(`Failed to fetch prompt: ${promptResponse.status}`);
-            }
-
-            const promptData = await promptResponse.json();
-            console.log('[InteractivePanel] New prompt fetched successfully');
-
-            // Update the WebSocket session with new prompt
-            if (pageVoiceChat.websocketRef && pageVoiceChat.websocketRef.current) {
-                const sessionUpdateMessage = {
-                    type: "session.update",
-                    session: {
-                        modalities: ["text", "audio"],
-                        instructions: promptData,
-                        voice: "shimmer",
-                        input_audio_format: "pcm16",
-                        output_audio_format: "pcm16",
-                        input_audio_transcription: {
-                            model: "whisper-1"
-                        },
-                        turn_detection: null
-                    }
-                };
-
-                pageVoiceChat.websocketRef.current.send(JSON.stringify(sessionUpdateMessage));
-                console.log('[InteractivePanel] Session updated with new question prompt');
-            }
-        } catch (error) {
-            console.error('[InteractivePanel] Failed to update question prompt:', error);
-        }
+        onAudioPlayingChange?.(playing);
     };
 
     const playQuestionAudioAsync = async (audioUrl) => {
         try {
-            // Check cache first
             let audioBlob = await getCachedAudio(audioUrl);
-
             if (!audioBlob) {
-                // Fetch from local/cloud
                 audioBlob = await fetchAudioWithRetry(audioUrl);
-                // Cache for future use
                 await cacheAudio(audioUrl, audioBlob);
             }
 
-            // Add 0.8 second delay before playing
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // Notify parent and update local state that audio is starting
+            await new Promise((resolve) => setTimeout(resolve, 500));
             updateAudioState(true);
 
-            // Play audio
             const audioObjectUrl = URL.createObjectURL(audioBlob);
             const audio = new Audio(audioObjectUrl);
-
-            audio.onended = () => {
-                URL.revokeObjectURL(audioObjectUrl);
-                // Notify parent and update local state that audio has ended
-                updateAudioState(false);
-            };
-            audio.onerror = () => {
-                URL.revokeObjectURL(audioObjectUrl);
-                console.error('Audio playback failed');
-                // Notify parent and update local state that audio has ended (due to error)
-                updateAudioState(false);
-            };
-
+            audio.onended = () => { URL.revokeObjectURL(audioObjectUrl); updateAudioState(false); };
+            audio.onerror = () => { URL.revokeObjectURL(audioObjectUrl); updateAudioState(false); };
             await audio.play();
-
-        } catch (error) {
-            console.error('Failed to play question audio:', error);
-            // Notify parent and update local state that audio has ended (due to error)
+        } catch {
             updateAudioState(false);
-            // Silently fail - don't break the UI
         }
     };
 
-    // Combine messages from different sources
-    const getCombinedMessages = () => {
-        const combinedMessages = [];
-
-        // Add conversation messages (both AI and user)
-        pageVoiceChat.conversationMessages.forEach(msg => {
-            combinedMessages.push({
-                id: msg.id,
-                content: msg.content,
-                isUser: msg.isUser,
-                timestamp: msg.timestamp,
-                type: msg.isUser ? 'user-conversation' : 'ai-response'
-            });
-        });
-
-        // Add streaming AI response if currently speaking
-        if (pageVoiceChat.isAiSpeaking && pageVoiceChat.currentStreamingTranscript) {
-            combinedMessages.push({
-                id: `streaming-${pageVoiceChat.streamingResponseId}`,
-                content: pageVoiceChat.currentStreamingTranscript,
-                isUser: false,
-                timestamp: new Date(),
-                type: 'ai-streaming'
-            });
-        }
-
-        // Add user transcription messages with proper timestamps
-        transcriptionWS.transcriptions.forEach((transcriptionObj, index) => {
-            if (transcriptionObj.text && transcriptionObj.text.includes('[TRANSCRIPTION]')) {
-                const cleanText = transcriptionObj.text.replace('[TRANSCRIPTION]', '').trim();
-                if (cleanText) {
-                    combinedMessages.push({
-                        id: `transcription-${index}`,
-                        content: cleanText,
-                        isUser: true,
-                        timestamp: transcriptionObj.timestamp,
-                        type: 'user-transcription'
-                    });
-                }
+    const handleRecordingComplete = useCallback((options = {}) => {
+        setIsProcessingTranscript(true);
+        try {
+            transcriptionWS.commitAudioBuffer(); // fallback flush
+            const text = transcriptionWS.getFinalTranscript();
+            setCurrentUserTranscript('');
+            if (options.isSilent || !text) {
+                httpChat.sendSilenceMessage();
+            } else {
+                httpChat.submitTranscript(text);
             }
-        });
+        } finally {
+            setIsProcessingTranscript(false);
+        }
+    }, [transcriptionWS, httpChat]);
 
-        // Sort by timestamp
-        return combinedMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    };
-
-    const renderMessage = (message) => {
-        const isUser = message.isUser;
-        // const avatarSrc = isUser ? userAvatarImage : avatarImage; // Avatars removed
-        const messageClass = isUser ? 'user-message' : 'ai-message';
-        const bubbleClass = isUser ? 'user-text' : 'ai-text';
-
+    // --- Render ---
+    const renderMessage = (msg) => {
+        const isUser = msg.role === 'user';
         return (
-            <div key={message.id} className={`chat-message ${messageClass}`}>
-                {/* Avatar container removed */}
-                <div className={`message-text ${bubbleClass}`}>
-                    {message.content}
+            <div key={msg.id} className={`chat-message ${isUser ? 'user-message' : 'ai-message'}`}>
+                <div className={`message-text ${isUser ? 'user-text' : 'ai-text'}`}>
+                    {msg.content}
                 </div>
             </div>
         );
     };
 
-    const messagesEndRef = React.useRef(null);
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    // Auto-scroll on new messages
-    useEffect(() => {
-        scrollToBottom();
-    }, [pageVoiceChat.conversationMessages, pageVoiceChat.currentStreamingTranscript, transcriptionWS.transcriptions]);
+    const voiceButtonDisabled =
+        httpChat.isAiSpeaking ||
+        httpChat.isLoading ||
+        httpChat.questionComplete ||
+        isAudioPlaying ||
+        isProcessingTranscript;
 
     return (
         <div className="interactive-panel">
@@ -286,22 +137,22 @@ const InteractivePanel = ({
             </div>
             <div className="panel-header">
                 <div className="d-flex justify-content-between align-items-center">
-                    {/* Removed Chat title as requested */}
                     <div />
                     {totalQuestions > 1 && questionIndex !== undefined && (
-                        <small className="text-muted" style={{ marginLeft: 'auto' }}>Question {questionIndex + 1} of {totalQuestions}</small>
+                        <small className="text-muted" style={{ marginLeft: 'auto' }}>
+                            Question {questionIndex + 1} of {totalQuestions}
+                        </small>
                     )}
                 </div>
-                {pageVoiceChat.isLoading && <small className="text-muted">Connecting...</small>}
-                {pageVoiceChat.error && <small className="text-danger">Error: {pageVoiceChat.error}</small>}
+                {httpChat.error && <small className="text-danger">Error: {httpChat.error}</small>}
             </div>
 
             <div className="panel-content">
                 <div className="chat-messages">
+                    {/* Initial question bubble */}
                     {question && (
                         <div className="question-section">
                             <div className="chat-message ai-message">
-                                {/* Avatar container removed */}
                                 <div className="message-text ai-text">
                                     {question.questionText}
                                 </div>
@@ -309,43 +160,32 @@ const InteractivePanel = ({
                         </div>
                     )}
 
-                    {getCombinedMessages().map(renderMessage)}
+                    {/* Conversation history */}
+                    {httpChat.conversationMessages.map(renderMessage)}
+
+                    {/* Ghost bubble: real-time transcription while recording */}
+                    {currentUserTranscript && (
+                        <div className="chat-message user-message">
+                            <div className="message-text user-text" style={{ opacity: 0.5, fontStyle: 'italic' }}>
+                                {currentUserTranscript}
+                            </div>
+                        </div>
+                    )}
+
                     <div ref={messagesEndRef} />
                 </div>
 
-
                 <div className="voice-controls">
-                    {feedbackMessage && (
-                        <div className="feedback-message">
-                            {feedbackMessage}
-                        </div>
-                    )}
                     <VoiceButton
-                        disabled={!canUseVoiceButton()}
-                        sharedStream={sharedStream} // Pass the shared stream to VoiceButton
-                        onAudioRecorded={(pcm16Data) => {
-                            pageVoiceChat.sendAudioData(pcm16Data);
-                        }}
+                        disabled={voiceButtonDisabled}
+                        sharedStream={sharedStream}
                         onAudioChunk={(pcm16Data) => {
                             if (transcriptionWS.isConnected) {
                                 transcriptionWS.sendAudioData(pcm16Data);
                             }
                         }}
-                        onRecordingComplete={(options = {}) => {
-                            if (options.isSilent) {
-                                // Silence detected - do nothing (don't send to AI, don't save to DB)
-                                console.log('[InteractivePanel] Silence detected, ignoring...');
-                                setFeedbackMessage('No speech detected');
-                                setTimeout(() => setFeedbackMessage(null), 3000);
-                            } else {
-                                // Normal flow - commit transcription buffer
-                                if (transcriptionWS.isConnected) {
-                                    setTimeout(() => {
-                                        transcriptionWS.commitAudioBuffer();
-                                    }, 100);
-                                }
-                            }
-                        }}
+                        onRecordingStart={() => setCurrentUserTranscript('')}
+                        onRecordingComplete={handleRecordingComplete}
                     />
                 </div>
             </div>
