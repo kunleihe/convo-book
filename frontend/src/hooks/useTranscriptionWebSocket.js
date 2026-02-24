@@ -1,83 +1,52 @@
 import { useState, useRef, useCallback } from 'react';
 
-export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionComplete = null) => {
+export const useTranscriptionWebSocket = (onTranscriptionDelta = null) => {
     const [isConnected, setIsConnected] = useState(false);
-    const [isTranscribing, setIsTranscribing] = useState(false);
-    const [transcriptions, setTranscriptions] = useState([]);
     const [connectionStatus, setConnectionStatus] = useState('disconnected');
 
     const websocketRef = useRef(null);
-
-    // Store book/page context for conversation storage
-    const currentBookId = useRef(bookId);
-    const currentPageNumber = useRef(pageNumber);
-
-    // Update context when parameters change
-    if (bookId !== currentBookId.current) {
-        currentBookId.current = bookId;
-    }
-    if (pageNumber !== currentPageNumber.current) {
-        currentPageNumber.current = pageNumber;
-    }
-
-    const addTranscription = useCallback((transcription, timestamp = new Date()) => {
-        setTranscriptions(prev => [...prev, { text: transcription, timestamp }]);
-    }, []);
+    const accumulatedTranscriptRef = useRef('');
 
     const addDebugMessage = useCallback((message) => {
         console.log(`[Transcription] ${message}`);
-        // Don't add debug messages to transcriptions array - only log to console
     }, []);
 
-
-
-    // Handle incoming transcription messages
     const handleTranscriptionMessage = useCallback((message) => {
         console.log('[Transcription] Received message:', message);
 
         switch (message.type) {
             case 'transcription_session.updated':
                 addDebugMessage('Transcription session updated successfully');
-                console.log('[Transcription] Session config:', message);
                 break;
 
             case 'input_audio_buffer.committed':
                 addDebugMessage(`Audio buffer committed: ${message.item_id}`);
-                console.log('[Transcription] Buffer committed:', message);
                 break;
 
             case 'input_audio_buffer.speech_started':
                 addDebugMessage('Speech started');
-                setIsTranscribing(true);
                 break;
 
             case 'input_audio_buffer.speech_stopped':
                 addDebugMessage('Speech stopped');
-                setIsTranscribing(false);
-                break;
-
-            case 'conversation.item.input_audio_transcription.completed':
-                if (message.transcript) {
-                    addDebugMessage(`Transcription completed: "${message.transcript}"`);
-
-                    // Forward the transcription completion to the main voice chat WebSocket
-                    // Don't add to local transcriptions array to avoid duplicates
-                    if (onTranscriptionComplete && typeof onTranscriptionComplete === 'function') {
-                        console.log('[Transcription] Forwarding transcription completion to main WebSocket');
-                        onTranscriptionComplete(message);
-                    }
-
-                    console.log('[Transcription] Completed:', message);
-                } else {
-                    addDebugMessage('Transcription completed but no transcript provided');
-                    console.log('[Transcription] Empty transcript:', message);
-                }
                 break;
 
             case 'conversation.item.input_audio_transcription.delta':
                 if (message.delta) {
                     addDebugMessage(`Transcription delta: "${message.delta}"`);
-                    console.log('[Transcription] Delta:', message);
+                    // Only fire the callback for ghost bubble display; do NOT accumulate here
+                    // (the completed event is the authoritative source for each VAD segment)
+                    onTranscriptionDelta?.(message.delta);
+                }
+                break;
+
+            case 'conversation.item.input_audio_transcription.completed':
+                if (message.transcript) {
+                    addDebugMessage(`Transcription completed: "${message.transcript}"`);
+                    // Accumulate — VAD may fire multiple completed events per recording
+                    accumulatedTranscriptRef.current += message.transcript;
+                } else {
+                    addDebugMessage('Transcription completed but no transcript provided');
                 }
                 break;
 
@@ -86,19 +55,24 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
                 console.error('[Transcription] Failed:', message);
                 break;
 
-            case 'error':
-                addDebugMessage(`Error: ${message.error?.message || 'Unknown error'}`);
-                console.error('[Transcription] Error:', message);
+            case 'error': {
+                const errMsg = message.error?.message || '';
+                // VAD may have already auto-committed the buffer; silently ignore empty-buffer errors
+                if (errMsg.toLowerCase().includes('buffer')) {
+                    addDebugMessage(`Ignoring buffer error (VAD already committed): ${errMsg}`);
+                } else {
+                    addDebugMessage(`Error: ${errMsg}`);
+                    console.error('[Transcription] Error:', message);
+                }
                 break;
+            }
 
             default:
                 addDebugMessage(`Received message: ${message.type}`);
-                console.log('[Transcription] Unknown message type:', message);
                 break;
         }
-    }, [addDebugMessage, onTranscriptionComplete]);
+    }, [addDebugMessage, onTranscriptionDelta]);
 
-    // Configure transcription session after connection
     const configureTranscriptionSession = useCallback((ws) => {
         try {
             const sessionConfig = {
@@ -110,7 +84,12 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
                         prompt: "",
                         language: "en"
                     },
-                    turn_detection: null, // Disable VAD - manual commits
+                    turn_detection: {
+                        type: "server_vad",
+                        threshold: 0.5,
+                        prefix_padding_ms: 300,
+                        silence_duration_ms: 500
+                    },
                     input_audio_noise_reduction: {
                         type: "near_field"
                     },
@@ -121,18 +100,15 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
             };
 
             ws.send(JSON.stringify(sessionConfig));
-            addDebugMessage('Sent transcription session configuration');
-            console.log('[Transcription] Session config sent:', sessionConfig);
+            addDebugMessage('Sent transcription session configuration with VAD enabled');
         } catch (error) {
             addDebugMessage(`Error configuring session: ${error.message}`);
             console.error('[Transcription] Session config error:', error);
         }
     }, [addDebugMessage]);
 
-    // Connect to transcription WebSocket via backend proxy
     const connect = useCallback(async () => {
         try {
-            // Connection guard - prevent duplicate connections
             if (isConnected || connectionStatus === 'connecting') {
                 addDebugMessage('Already connected or connecting to transcription');
                 return;
@@ -144,23 +120,19 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
             }
 
             setConnectionStatus('connecting');
-            console.log('[Transcription] Connecting via backend proxy...');
 
             const API_BASE_URL = import.meta.env.VITE_API_URL || '';
             const wsProtocol = API_BASE_URL.startsWith('https') ? 'wss' : 'ws';
             const wsBase = API_BASE_URL.replace(/^https?:/, wsProtocol + ':');
-            
-            // Add token to URL query parameters for authentication
             const token = localStorage.getItem('authToken');
             const wsUrl = `${wsBase}/transcription${token ? `?token=${token}` : ''}`;
-            
+
             addDebugMessage(`Connecting to: ${wsUrl}`);
 
             const ws = new WebSocket(wsUrl);
 
             ws.onopen = () => {
-                addDebugMessage('Connected to transcription WebSocket via backend proxy');
-                console.log('[Transcription] WebSocket connected successfully via proxy');
+                addDebugMessage('Connected to transcription WebSocket');
                 setIsConnected(true);
                 setConnectionStatus('connected');
             };
@@ -168,30 +140,26 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
             ws.onmessage = (event) => {
                 try {
                     const message = JSON.parse(event.data);
-
                     if (message.type === 'connection.established') {
-                        console.log('[Transcription] Connection established with API key');
-                        // Configure the transcription session after connection is established
                         configureTranscriptionSession(ws);
                     } else {
                         handleTranscriptionMessage(message);
                     }
                 } catch (error) {
                     addDebugMessage(`Error parsing message: ${error.message}`);
-                    console.error('[Transcription] Message parse error:', error, 'Raw data:', event.data);
+                    console.error('[Transcription] Message parse error:', error);
                 }
             };
 
             ws.onclose = (event) => {
-                addDebugMessage(`Transcription WebSocket closed: ${event.code} - ${event.reason}`);
-                console.log('[Transcription] WebSocket closed:', event.code, event.reason);
+                addDebugMessage(`WebSocket closed: ${event.code} - ${event.reason}`);
                 setIsConnected(false);
                 setConnectionStatus('disconnected');
                 websocketRef.current = null;
             };
 
             ws.onerror = (error) => {
-                addDebugMessage(`Transcription WebSocket error: ${error.message || 'Unknown error'}`);
+                addDebugMessage(`WebSocket error: ${error.message || 'Unknown error'}`);
                 console.error('[Transcription] WebSocket error:', error);
                 setConnectionStatus('error');
             };
@@ -205,22 +173,16 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
         }
     }, [isConnected, connectionStatus, addDebugMessage, handleTranscriptionMessage, configureTranscriptionSession]);
 
-    // Send audio data for transcription
     const sendAudioData = useCallback((audioData) => {
         if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
             try {
-                // Convert PCM16 data to base64
                 const base64Audio = btoa(
                     String.fromCharCode.apply(null, new Uint8Array(audioData.buffer))
                 );
-
-                const audioMessage = {
+                websocketRef.current.send(JSON.stringify({
                     type: "input_audio_buffer.append",
                     audio: base64Audio
-                };
-
-                websocketRef.current.send(JSON.stringify(audioMessage));
-                console.log(`[Transcription] Sent audio chunk: ${audioData.length} samples (${base64Audio.length} base64 chars)`);
+                }));
                 return true;
             } catch (error) {
                 addDebugMessage(`Error sending audio: ${error.message}`);
@@ -229,22 +191,15 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
             }
         } else {
             addDebugMessage('Cannot send audio - not connected');
-            console.warn('[Transcription] Not connected, cannot send audio');
             return false;
         }
     }, [addDebugMessage]);
 
-    // Manually commit audio buffer for transcription (since VAD is disabled)
     const commitAudioBuffer = useCallback(() => {
         if (websocketRef.current && websocketRef.current.readyState === WebSocket.OPEN) {
             try {
-                const commitMessage = {
-                    type: "input_audio_buffer.commit"
-                };
-
-                websocketRef.current.send(JSON.stringify(commitMessage));
-                addDebugMessage('Audio buffer committed for transcription');
-                console.log('[Transcription] Audio buffer commit sent - waiting for response...');
+                websocketRef.current.send(JSON.stringify({ type: "input_audio_buffer.commit" }));
+                addDebugMessage('Audio buffer commit sent (fallback flush)');
                 return true;
             } catch (error) {
                 addDebugMessage(`Error committing audio buffer: ${error.message}`);
@@ -253,42 +208,49 @@ export const useTranscriptionWebSocket = (bookId, pageNumber, onTranscriptionCom
             }
         } else {
             addDebugMessage('Cannot commit audio buffer - not connected');
-            console.warn('[Transcription] Not connected, cannot commit audio buffer');
             return false;
         }
     }, [addDebugMessage]);
 
-    // Disconnect from transcription WebSocket
+    /**
+     * Returns the full accumulated transcript since last call (or since connect/clear),
+     * then resets the accumulator.
+     */
+    const getFinalTranscript = useCallback(() => {
+        const text = accumulatedTranscriptRef.current;
+        accumulatedTranscriptRef.current = '';
+        return text;
+    }, []);
+
+    /**
+     * Clears the accumulated transcript without returning it (use when switching questions).
+     */
+    const clearAccumulatedTranscript = useCallback(() => {
+        accumulatedTranscriptRef.current = '';
+    }, []);
+
     const disconnect = useCallback(() => {
-        // Disconnect guard - only disconnect if actually connected
         if (!isConnected && connectionStatus === 'disconnected') {
-            addDebugMessage('Already disconnected from transcription');
             return;
         }
-
         if (websocketRef.current) {
             websocketRef.current.close();
             websocketRef.current = null;
         }
         setIsConnected(false);
         setConnectionStatus('disconnected');
+        accumulatedTranscriptRef.current = '';
         addDebugMessage('Disconnected from transcription');
     }, [isConnected, connectionStatus, addDebugMessage]);
 
-    // Clear transcriptions
-    const clearTranscriptions = useCallback(() => {
-        setTranscriptions([]);
-    }, []);
-
     return {
         isConnected,
-        isTranscribing,
-        transcriptions,
         connectionStatus,
         connect,
         disconnect,
         sendAudioData,
-        clearTranscriptions,
-        commitAudioBuffer
+        commitAudioBuffer,
+        getFinalTranscript,
+        clearAccumulatedTranscript,
     };
-}; 
+};
