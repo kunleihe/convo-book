@@ -25,6 +25,7 @@ const BookReader = () => {
     const [activeQuestion, setActiveQuestion] = useState(null);
     const [chatMessages, setChatMessages] = useState([]);
     const [isQuestionAudioPlaying, setIsQuestionAudioPlaying] = useState(false);
+    const [currentQuestionComplete, setCurrentQuestionComplete] = useState(false);
 
     // Global Media Stream for Page Recording & Chat
     const [globalStream, setGlobalStream] = useState(null);
@@ -86,6 +87,11 @@ const BookReader = () => {
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
     }, [bookData, pageNumber]);
+
+    // Reset question complete state when active question or page changes
+    useEffect(() => {
+        setCurrentQuestionComplete(false);
+    }, [activeQuestion?.id, pageNumber]);
 
     // Preload next page image when chat panel opens
     useEffect(() => {
@@ -309,11 +315,9 @@ const BookReader = () => {
     };
 
     const canPerformAction = () => {
-        // Disable action if question audio is playing
-        if (isQuestionAudioPlaying) {
-            return false;
-        }
-        // Always allow action - button handles navigation or chat panel
+        if (isQuestionAudioPlaying) return false;
+        // When chat panel is open, require the current question to be completed first
+        if (showChatPanel && !currentQuestionComplete) return false;
         return true;
     };
 
@@ -423,6 +427,8 @@ const BookReader = () => {
                             questionIndex={currentQuestionIndex}
                             totalQuestions={currentQuestions.length}
                             sharedStream={globalStream}
+                            pageText={currentPage?.storyText}
+                            onQuestionComplete={() => setCurrentQuestionComplete(true)}
                         />
                     </div>
                 </Draggable>
