@@ -1,23 +1,13 @@
 import json
-import functools
-from pathlib import Path
 from typing import List, Optional
 
-import yaml
 from fastapi import APIRouter, HTTPException
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 
+from app.config import load_model_settings
+
 chat_router = APIRouter()
-
-DATA_DIR = Path(__file__).parent.parent.parent / "data"
-MODEL_SETTINGS_PATH = DATA_DIR / "model-settings-en.yaml"
-
-
-@functools.lru_cache(maxsize=1)
-def _load_model_settings() -> dict:
-    with open(MODEL_SETTINGS_PATH, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
 
 
 class ChatRequest(BaseModel):
@@ -41,7 +31,7 @@ def _normalize_is_final(raw) -> bool:
 
 @chat_router.post("/chat")
 async def chat(request: ChatRequest):
-    settings = _load_model_settings()
+    settings = load_model_settings()
 
     if request.round_number == 1:
         template = settings["round1PromptTemplate"]

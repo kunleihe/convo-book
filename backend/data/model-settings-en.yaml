@@ -5,6 +5,8 @@ ttsModel:
   model: "gpt-4o-mini-tts"
   voice: "shimmer"
   speed: 0.9
+  responseFormat: "mp3"
+  instructions: "Speak slowly and clearly, suitable for young children aged 6-8."
 
 textModel:
   provider: "OpenAI"

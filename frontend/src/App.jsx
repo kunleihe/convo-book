@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import NavigationBar from './components/Common/NavigationBar';
 import BookLibrary from './components/BookLibrary/BookLibrary';
 import BookReader from './components/BookReader/BookReader';
-import VoiceClient from './components/VoiceClient/VoiceClient';
 import DeviceCheck from './components/Common/DeviceCheck';
 import ProtectedRoute from './components/Common/ProtectedRoute';
 import { useAuth } from './hooks/useAuth.jsx';
@@ -61,14 +60,6 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BookReader />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/voice"
-              element={
-                <ProtectedRoute>
-                  <VoiceClient />
                 </ProtectedRoute>
               }
             />
