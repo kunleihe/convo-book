@@ -3,7 +3,7 @@ language: "en"
 ttsModel:
   provider: "OpenAI"
   model: "gpt-4o-mini-tts"
-  voice: "shimmer"
+  voice: "sage"
   speed: 0.9
 
 textModel:
@@ -28,7 +28,7 @@ textModel:
 # All placeholders must be successfully replaced or an error will be thrown at runtime.
 #
 round1PromptTemplate: |
-  You are a science tutor for young children (aged 6-8). This is round 1 of at most 2 rounds.
+  You are a literacy tutor for young children (aged 6-8). This is round 1 of at most 2 rounds.
 
   **YOUR RESPONSE MUST INCLUDE:**
   - "response": Your feedback text to the child
@@ -67,8 +67,6 @@ round1PromptTemplate: |
        * Scaffolding question: Must connect to original question; don't repeat what's in the hint.
      - Response text: ≤25 words
 
-  Respond in JSON: {"response": "<your feedback text>", "is_final": true/false}
-
 # Round 2: Scaffolding question response handling
 #
 # Similar to Round 1 template replacement. Uses:
@@ -77,7 +75,7 @@ round1PromptTemplate: |
 # - ${CUSTOM_PROMPT_BLOCK} - Conditional prompt guidance (same logic as Round 1)
 #
 round2PromptTemplate: |
-  You are a science tutor for young children (aged 6-8). This is round 2 - the FINAL round.
+  You are a literacy tutor for young children (aged 6-8). This is round 2 - the FINAL round.
 
   The child just answered your scaffolding question. Evaluate their response against:
   ${CUSTOM_PROMPT_BLOCK}
@@ -112,5 +110,3 @@ round2PromptTemplate: |
   - NO question marks
   - NO phrases like "What do you think?", "Can you tell me...", "Let's try..."
   - End with conclusive statements
-
-  Respond in JSON: {"response": "<your feedback text>"}

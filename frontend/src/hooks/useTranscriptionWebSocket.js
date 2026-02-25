@@ -44,7 +44,8 @@ export const useTranscriptionWebSocket = (onTranscriptionDelta = null) => {
                 if (message.transcript) {
                     addDebugMessage(`Transcription completed: "${message.transcript}"`);
                     // Accumulate — VAD may fire multiple completed events per recording
-                    accumulatedTranscriptRef.current += message.transcript;
+                    const sep = accumulatedTranscriptRef.current ? ' ' : '';
+                    accumulatedTranscriptRef.current += sep + message.transcript;
                 } else {
                     addDebugMessage('Transcription completed but no transcript provided');
                 }
