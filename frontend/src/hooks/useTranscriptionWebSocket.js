@@ -87,9 +87,9 @@ export const useTranscriptionWebSocket = (onTranscriptionDelta = null) => {
                     },
                     turn_detection: {
                         type: "server_vad",
-                        threshold: 0.5,
-                        prefix_padding_ms: 300,
-                        silence_duration_ms: 500
+                        threshold: 0.3,
+                        prefix_padding_ms: 100,
+                        silence_duration_ms: 200
                     },
                     input_audio_noise_reduction: {
                         type: "near_field"
