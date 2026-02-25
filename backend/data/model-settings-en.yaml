@@ -21,7 +21,7 @@ textModel:
 # ${pageText} - Replaced with the full text content from the current book page
 # ${questionText} - Replaced with the current question text for this turn
 # ${CUSTOM_PROMPT_BLOCK} - Conditionally replaced based on whether a custom prompt exists:
-#   - If customPrompt exists: "the expected answer: "[customPrompt]"\n\nFor hints, you may also refer to the reference passage below:"
+#   - If customPrompt exists: "[customPrompt] \n\nFor hints, you may also refer to the reference passage below:"
 #   - If no customPrompt: "the reference passage below:"
 #
 # Note: The initial question is included in the conversation history as an assistant message,

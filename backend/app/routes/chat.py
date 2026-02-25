@@ -40,8 +40,8 @@ async def chat(request: ChatRequest):
 
     if request.custom_prompt:
         custom_prompt_block = (
-            f'the expected answer: "{request.custom_prompt}"\n\n'
-            f"For hints, you may also refer to the reference passage below:"
+            f"{request.custom_prompt}\n\n"
+            f"You may also refer to the reference passage below:"
         )
     else:
         custom_prompt_block = "the reference passage below:"
