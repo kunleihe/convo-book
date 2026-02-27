@@ -61,11 +61,9 @@ def load_book_from_yaml(book_id: str, yaml_file: Path) -> Dict[str, Any]:
 
         questions = []
         for q in p.get("questions", []):
-            audio_s3_key = uri_prefix + q.get("audio_uri", "")
             questions.append({
                 "id": q.get("id"),
                 "questionText": q.get("text", ""),
-                "audioUrl": _presign(audio_s3_key),
                 "customPrompt": q.get("custom_prompt"),
             })
 

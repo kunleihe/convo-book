@@ -5,6 +5,7 @@ import Draggable from 'react-draggable';
 import { loadBookData, getPageData } from '../../utils/bookDataLoader';
 import { saveReadingProgress, clearReadingProgress } from '../../utils/storageUtils';
 import { apiRequest } from '../../utils/api';
+import { getCachedAudio, cacheAudio } from '../../utils/audioCache';
 import InteractivePanel from './InteractivePanel/InteractivePanel';
 import './BookReader.css';
 
@@ -92,6 +93,34 @@ const BookReader = () => {
     useEffect(() => {
         setCurrentQuestionComplete(false);
     }, [activeQuestion?.id, pageNumber]);
+
+    // 翻到含问题的页面时，提前在后台生成并缓存问题 TTS 音频
+    useEffect(() => {
+        if (!currentPage?.questions?.length) return;
+
+        const prefetchQuestionAudio = async () => {
+            for (const q of currentPage.questions) {
+                if (!q.questionText) continue;
+                const cached = await getCachedAudio(q.questionText);
+                if (cached) continue;
+                try {
+                    const response = await apiRequest('/api/tts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: q.questionText }),
+                    });
+                    if (response?.ok) {
+                        const blob = await response.blob();
+                        await cacheAudio(q.questionText, blob);
+                    }
+                } catch {
+                    // 静默失败，InteractivePanel 打开时会实时生成兜底
+                }
+            }
+        };
+
+        prefetchQuestionAudio();
+    }, [currentPage]);
 
     // Preload next page image when chat panel opens
     useEffect(() => {

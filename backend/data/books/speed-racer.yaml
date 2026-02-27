@@ -33,7 +33,7 @@ pages:
           Let's take a moment to chat together!
           Did you ever ride in a car going really fast? How did it feel?
         audio_uri: audios/questions/page-02-q1.mp3
-        custom_prompt: "Accept whatever the response is, provide positive feedback, and set is_final: true."
+        custom_prompt: "As long as the child's response is relevant, accept whatever the response is, provide positive feedback, and set is_final: true in your response."
 
   - page_number: 3
     image_uri: images/page-03.png

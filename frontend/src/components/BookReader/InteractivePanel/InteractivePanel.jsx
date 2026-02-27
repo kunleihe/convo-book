@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import VoiceButton from './VoiceButton/VoiceButton';
 import { useHTTPChat } from '../../../hooks/useHTTPChat';
 import { useTranscriptionWebSocket } from '../../../hooks/useTranscriptionWebSocket';
-import { fetchAudioWithRetry, getCachedAudio, cacheAudio } from '../../../utils/audioCache';
+import { getCachedAudio, cacheAudio } from '../../../utils/audioCache';
+import { apiRequest } from '../../../utils/api';
 import './InteractivePanel.css';
 
 const InteractivePanel = ({
@@ -16,7 +17,7 @@ const InteractivePanel = ({
     pageText = '',
     onQuestionComplete,
 }) => {
-    const [isAudioPlaying, setIsAudioPlaying] = useState(!!question?.audioUrl);
+    const [isAudioPlaying, setIsAudioPlaying] = useState(!!question?.questionText);
     // Ghost bubble: real-time transcription delta while recording
     const [currentUserTranscript, setCurrentUserTranscript] = useState('');
     // Gate between recording-stop and submit completing to prevent double presses
@@ -55,8 +56,8 @@ const InteractivePanel = ({
 
     // --- Question audio playback ---
     useEffect(() => {
-        if (question?.audioUrl) {
-            playQuestionAudioAsync(question.audioUrl);
+        if (question?.questionText) {
+            playQuestionTTSAsync(question.questionText);
         }
         return () => {
             updateAudioState(false);
@@ -74,12 +75,19 @@ const InteractivePanel = ({
         onAudioPlayingChange?.(playing);
     };
 
-    const playQuestionAudioAsync = async (audioUrl) => {
+    const playQuestionTTSAsync = async (questionText) => {
         try {
-            let audioBlob = await getCachedAudio(audioUrl);
+            let audioBlob = await getCachedAudio(questionText);
             if (!audioBlob) {
-                audioBlob = await fetchAudioWithRetry(audioUrl);
-                await cacheAudio(audioUrl, audioBlob);
+                // 缓存未命中时实时生成（兜底）
+                const response = await apiRequest('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: questionText }),
+                });
+                if (!response?.ok) throw new Error(`TTS failed: ${response?.status}`);
+                audioBlob = await response.blob();
+                await cacheAudio(questionText, audioBlob);
             }
 
             await new Promise((resolve) => setTimeout(resolve, 500));

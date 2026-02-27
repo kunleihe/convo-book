@@ -3,7 +3,7 @@ language: "en"
 ttsModel:
   provider: "OpenAI"
   model: "gpt-4o-mini-tts"
-  voice: "shimmer"
+  voice: "sage"
   speed: 0.9
   responseFormat: "mp3"
   instructions: "Speak slowly and clearly, suitable for young children aged 6-8."
