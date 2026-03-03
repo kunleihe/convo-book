@@ -4,6 +4,7 @@ import NavigationBar from './components/Common/NavigationBar';
 import BookLibrary from './components/BookLibrary/BookLibrary';
 import BookReader from './components/BookReader/BookReader';
 import DeviceCheck from './components/Common/DeviceCheck';
+import SetupGuide from './components/Common/SetupGuide';
 import ProtectedRoute from './components/Common/ProtectedRoute';
 import { useAuth } from './hooks/useAuth.jsx';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -52,6 +53,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DeviceCheck />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/setup-guide"
+              element={
+                <ProtectedRoute>
+                  <SetupGuide />
                 </ProtectedRoute>
               }
             />
