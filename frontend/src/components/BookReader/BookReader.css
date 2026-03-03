@@ -109,6 +109,13 @@
     background-color: #caced1;
 }
 
+.btn-prev:disabled,
+.btn-next:disabled {
+    background-color: #f0f0f0;
+    color: #b0b0b0;
+    cursor: not-allowed;
+}
+
 .btn-speak {
     background-color: #f0f0f0;
     color: #666;
@@ -196,6 +203,54 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     animation: popIn 0.3s ease-out;
     z-index: 10;
+}
+
+/* Narration Overlay */
+.narration-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    color: white;
+    z-index: 100;
+}
+
+.narration-play-btn {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.narration-play-btn:hover {
+    opacity: 0.8;
+}
+
+.narration-progress {
+    flex: 1;
+    height: 4px;
+    cursor: pointer;
+    accent-color: white;
+}
+
+.narration-time {
+    font-size: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
 }
 
 /* Pop-in animation */

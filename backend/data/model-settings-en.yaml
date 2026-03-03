@@ -65,7 +65,7 @@ round1PromptTemplate: |
   2. **Partial answer/ Incorrect / "I don't know" / Irrelevant / Silence** → Set is_final: false
      - Brief encouragement: "You got it! (partial answer)"/"Good try!" (incorrect) / "That's okay!" (I don't know/irrelevant) / "I'm curious what you think" (silence)
      - Give hint + scaffolding question:
-       * Hint: If correct answer is in passage → quote the relevant part. Otherwise → give an indirect clue.
+       * Hint: If correct answer is in passage → retell the relevant part. Otherwise → give an indirect clue.
        * Scaffolding question: If partial answer, ask what's not answered. Otherwise, must connect to original question; don't repeat what's in the hint.
      - Response text: ≤25 words
 

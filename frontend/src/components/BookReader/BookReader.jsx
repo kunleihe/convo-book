@@ -7,7 +7,15 @@ import { saveReadingProgress, clearReadingProgress } from '../../utils/storageUt
 import { apiRequest } from '../../utils/api';
 import { getCachedAudio, cacheAudio } from '../../utils/audioCache';
 import InteractivePanel from './InteractivePanel/InteractivePanel';
+import { useNarration } from '../../hooks/useNarration';
 import './BookReader.css';
+
+const formatTime = (s) => {
+    if (!s || isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+};
 
 const BookReader = () => {
     const { bookId, pageNumber } = useParams();
@@ -27,6 +35,9 @@ const BookReader = () => {
     const [chatMessages, setChatMessages] = useState([]);
     const [isQuestionAudioPlaying, setIsQuestionAudioPlaying] = useState(false);
     const [currentQuestionComplete, setCurrentQuestionComplete] = useState(false);
+
+    // Narration audio
+    const { isPlaying: isNarrationPlaying, currentTime: narrationTime, duration: narrationDuration, play: playNarration, pause: pauseNarration, seek: seekNarration } = useNarration(currentPage?.narrationAudioUrl);
 
     // Global Media Stream for Page Recording & Chat
     const [globalStream, setGlobalStream] = useState(null);
@@ -344,6 +355,7 @@ const BookReader = () => {
     };
 
     const canPerformAction = () => {
+        if (isNarrationPlaying) return false;
         if (isQuestionAudioPlaying) return false;
         // When chat panel is open, require the current question to be completed first
         if (showChatPanel && !currentQuestionComplete) return false;
@@ -440,6 +452,38 @@ const BookReader = () => {
                     alt={`Page ${currentPage.pageNumber}`}
                     className="fullscreen-image"
                 />
+                {currentPage?.narrationAudioUrl && (
+                    <div className="narration-overlay">
+                        <button
+                            className="narration-play-btn"
+                            onClick={isNarrationPlaying ? pauseNarration : playNarration}
+                            aria-label={isNarrationPlaying ? 'Pause narration' : 'Play narration'}
+                        >
+                            {isNarrationPlaying ? (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <rect x="6" y="4" width="4" height="16" />
+                                    <rect x="14" y="4" width="4" height="16" />
+                                </svg>
+                            ) : (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <polygon points="5,3 19,12 5,21" />
+                                </svg>
+                            )}
+                        </button>
+                        <input
+                            type="range"
+                            className="narration-progress"
+                            min={0}
+                            max={narrationDuration || 0}
+                            step={0.1}
+                            value={narrationTime}
+                            onChange={(e) => seekNarration(Number(e.target.value))}
+                        />
+                        <span className="narration-time">
+                            {formatTime(narrationTime)} / {formatTime(narrationDuration)}
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Layer 2: Floating Interactive Panel */}

@@ -139,11 +139,9 @@ pages:
       - id: q1
         text: |
           Elinor, Olive, and Ari painted their car yellow and drew a racing stripe.
-          Let's think about what we know and make a prediction!
-          When you make a prediction, you say what you think will happen.
-          Do you predict that Elinor's car will go as fast as Camila's car? Why or why not?
+          Do you think that Elinor's car will go as fast as Camila's car? Why or why not?
         audio_uri: audios/questions/page-12-q1.mp3
-        custom_prompt: "Expected answer: No. Because the color of the car doesn't change how fast it moves."
+        custom_prompt: "Expected answer: No, Elinor's car won't go as fast, because the color of the car doesn't change how fast it moves."
 
   - page_number: 13
     image_uri: images/page-13.png
@@ -188,11 +186,9 @@ pages:
       - id: q1
         text: |
           Now Elinor and her friends added a cupholder to the car.
-          Let's think about what we know and make a prediction again!
-          When you make a prediction, you say what you think will happen.
-          Do you predict that Elinor's car will go as fast as Camila's car? Why or why not?
+          Do you think that Elinor's car will go as fast as Camila's car? Why or why not?
         audio_uri: audios/questions/page-16-q1.mp3
-        custom_prompt: "Expected answer: No. Because the cupholder doesn't change how fast the car moves."
+        custom_prompt: "Expected answer: No, Elinor's car won't go as fast, because the cupholder doesn't change how fast the car moves."
 
   - page_number: 17
     image_uri: images/page-17.png
@@ -283,9 +279,9 @@ pages:
       but boxy things get slowed down." explained Mr. Rabbit.
     questions:
       - id: q1
-        text: Another question! Let's imagine building a rocket. Would you make it boxy or pointy? Why?
+        text: Another question! Why do boxy things move slower?
         audio_uri: audios/questions/page-24-q2.mp3
-        custom_prompt: Pointy. Because the air goes around the rocket and pushes it up.
+        custom_prompt: Because the air pushes boxy things back.
 
   - page_number: 25
     image_uri: images/page-25.png
@@ -307,9 +303,9 @@ pages:
       - id: q1
         text: |
           Now Elinor's car and Camilla's car are both streamlined.
-          Let's make a prediction! Do you predict that Elinor's car will go as fast as Camilla's car? Why or why not?
+          Do you think that Elinor's car will go as fast as Camilla's car? Why or why not?
         audio_uri: audios/questions/page-26-q1.mp3
-        custom_prompt: "Expected answer: Yes. Because now Elinor's car is streamlined, just like Camilla's, so it can move through the air more easily."
+        custom_prompt: "Expected answer: Yes, Elinor's car will go as fast as Camilla's car. Because now Elinor's car is streamlined, just like Camilla's, so it can move through the air more easily."
 
   - page_number: 27
     image_uri: images/page-27.png
