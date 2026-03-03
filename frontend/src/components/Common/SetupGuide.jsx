@@ -6,11 +6,13 @@ import zoomAudioVideo from '../../assets/zoom-audio-video.png';
 
 const STEPS = [
   {
+    id: 'share-screen',
     image: zoomShare,
     alt: 'Zoom toolbar with Share button highlighted',
     label: 'Click "Share" in Zoom to share your screen.',
   },
   {
+    id: 'mute-av',
     image: zoomAudioVideo,
     alt: 'Zoom toolbar with Audio and Video buttons highlighted',
     label: 'Mute your audio and turn off your video in Zoom.',
@@ -18,7 +20,7 @@ const STEPS = [
 ];
 
 const SetupGuide = () => {
-  const [checked, setChecked] = useState([false, false]);
+  const [checked, setChecked] = useState(() => STEPS.map(() => false));
   const navigate = useNavigate();
 
   const toggle = (index) => {
@@ -39,7 +41,7 @@ const SetupGuide = () => {
           </p>
 
           {STEPS.map((step, index) => (
-            <div key={index} className="mb-4 border rounded p-3">
+            <div key={step.id} className="mb-4 border rounded p-3">
               <img
                 src={step.image}
                 alt={step.alt}
@@ -48,7 +50,7 @@ const SetupGuide = () => {
               />
               <Form.Check
                 type="checkbox"
-                id={`step-${index}`}
+                id={`step-${step.id}`}
                 label={step.label}
                 checked={checked[index]}
                 onChange={() => toggle(index)}
