@@ -31,7 +31,7 @@ const SetupGuide = () => {
 
   return (
     <Container className="d-flex align-items-center justify-content-center min-vh-100">
-      <Card className="shadow-lg" style={{ width: '100%', maxWidth: '600px' }}>
+      <Card className="shadow-lg" style={{ width: '100%', maxWidth: '900px' }}>
         <Card.Header className="bg-primary text-white text-center">
           <h4 className="mb-0">Before You Start</h4>
         </Card.Header>
@@ -45,8 +45,13 @@ const SetupGuide = () => {
               <img
                 src={step.image}
                 alt={step.alt}
-                className="img-fluid rounded mb-3"
-                style={{ width: '100%' }}
+                className="rounded mb-3"
+                style={{
+                  width: '100%',
+                  height: '120px',
+                  objectFit: 'contain',
+                  backgroundColor: '#1c1c1c',
+                }}
               />
               <Form.Check
                 type="checkbox"
