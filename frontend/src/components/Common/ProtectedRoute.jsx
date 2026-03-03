@@ -18,7 +18,7 @@ const ProtectedRoute = ({ children }) => {
     }
 
     if (!isAuthenticated) {
-        // Redirect to device check after successful login
+        // Redirect to setup guide after successful login
         return <Login onLoginSuccess={() => navigate('/setup-guide')} />;
     }
 
