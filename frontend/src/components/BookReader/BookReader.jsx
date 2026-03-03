@@ -4,7 +4,15 @@ import { Container, Alert, Spinner, Button } from 'react-bootstrap';
 import { loadBookData, getPageData } from '../../utils/bookDataLoader';
 import { saveReadingProgress, clearReadingProgress } from '../../utils/storageUtils';
 import { apiRequest } from '../../utils/api';
+import { useNarration } from '../../hooks/useNarration';
 import './BookReader.css';
+
+const formatTime = (s) => {
+    if (!s || isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+};
 
 const BookReader = () => {
     const { bookId, pageNumber } = useParams();
@@ -15,6 +23,9 @@ const BookReader = () => {
     const [currentPage, setCurrentPage] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Narration audio
+    const { isPlaying: isNarrationPlaying, currentTime: narrationTime, duration: narrationDuration, play: playNarration, pause: pauseNarration, seek: seekNarration } = useNarration(currentPage?.narrationAudioUrl);
 
     // Global Media Stream for Page Recording
     const [globalStream, setGlobalStream] = useState(null);
@@ -239,6 +250,11 @@ const BookReader = () => {
         }
     };
 
+    const canPerformAction = () => {
+        if (isNarrationPlaying) return false;
+        return true;
+    };
+
     const canGoPrevious = () => {
         const currentPageNum = parseInt(pageNumber, 10);
         return currentPageNum > 1;
@@ -294,6 +310,38 @@ const BookReader = () => {
                     alt={`Page ${currentPage.pageNumber}`}
                     className="fullscreen-image"
                 />
+                {currentPage?.narrationAudioUrl && (
+                    <div className="narration-overlay">
+                        <button
+                            className="narration-play-btn"
+                            onClick={isNarrationPlaying ? pauseNarration : playNarration}
+                            aria-label={isNarrationPlaying ? 'Pause narration' : 'Play narration'}
+                        >
+                            {isNarrationPlaying ? (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <rect x="6" y="4" width="4" height="16" />
+                                    <rect x="14" y="4" width="4" height="16" />
+                                </svg>
+                            ) : (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <polygon points="5,3 19,12 5,21" />
+                                </svg>
+                            )}
+                        </button>
+                        <input
+                            type="range"
+                            className="narration-progress"
+                            min={0}
+                            max={narrationDuration || 0}
+                            step={0.1}
+                            value={narrationTime}
+                            onChange={(e) => seekNarration(Number(e.target.value))}
+                        />
+                        <span className="narration-time">
+                            {formatTime(narrationTime)} / {formatTime(narrationDuration)}
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Layer 2: Bottom Control Bar */}
@@ -318,6 +366,7 @@ const BookReader = () => {
                 <div className="right-controls">
                     <button
                         className="btn-control btn-next"
+                        disabled={!canPerformAction()}
                         onClick={handleNextPage}
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
