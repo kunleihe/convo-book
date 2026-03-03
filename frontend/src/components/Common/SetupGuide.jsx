@@ -48,7 +48,7 @@ const SetupGuide = () => {
                 className="rounded mb-3"
                 style={{
                   width: '100%',
-                  height: '160px',
+                  height: '80px',
                   objectFit: 'contain',
                   backgroundColor: '#1c1c1c',
                 }}
