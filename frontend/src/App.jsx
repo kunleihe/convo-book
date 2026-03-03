@@ -5,6 +5,7 @@ import BookLibrary from './components/BookLibrary/BookLibrary';
 import BookReader from './components/BookReader/BookReader';
 import VoiceClient from './components/VoiceClient/VoiceClient';
 import DeviceCheck from './components/Common/DeviceCheck';
+import SetupGuide from './components/Common/SetupGuide';
 import ProtectedRoute from './components/Common/ProtectedRoute';
 import { useAuth } from './hooks/useAuth.jsx';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -45,6 +46,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BookLibrary />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/setup-guide"
+              element={
+                <ProtectedRoute>
+                  <SetupGuide />
                 </ProtectedRoute>
               }
             />
