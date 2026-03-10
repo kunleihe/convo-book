@@ -22,8 +22,10 @@ const InteractivePanel = ({
     const [currentUserTranscript, setCurrentUserTranscript] = useState('');
     // Gate between recording-stop and submit completing to prevent double presses
     const [isProcessingTranscript, setIsProcessingTranscript] = useState(false);
+    const [silentHint, setSilentHint] = useState(false);
 
     const messagesEndRef = useRef(null);
+    const silentHintTimerRef = useRef(null);
 
     // --- Hooks ---
     const httpChat = useHTTPChat();
@@ -37,11 +39,13 @@ const InteractivePanel = ({
         if (question && bookId && pageNumber) {
             transcriptionWS.clearAccumulatedTranscript();
             setCurrentUserTranscript('');
+            setSilentHint(false);
             httpChat.initialize(bookId, pageNumber, question, pageText);
             transcriptionWS.connect();
         }
         return () => {
             transcriptionWS.disconnect();
+            if (silentHintTimerRef.current) clearTimeout(silentHintTimerRef.current);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [question?.id, bookId, pageNumber]);
@@ -110,7 +114,10 @@ const InteractivePanel = ({
             const text = transcriptionWS.getFinalTranscript();
             setCurrentUserTranscript('');
             if (options.isSilent || !text) {
-                httpChat.sendSilenceMessage();
+                transcriptionWS.clearAccumulatedTranscript();
+                setSilentHint(true);
+                if (silentHintTimerRef.current) clearTimeout(silentHintTimerRef.current);
+                silentHintTimerRef.current = setTimeout(() => setSilentHint(false), 3000);
             } else {
                 httpChat.submitTranscript(text);
             }
@@ -184,6 +191,9 @@ const InteractivePanel = ({
                 </div>
 
                 <div className="voice-controls">
+                    {silentHint && (
+                        <p className="silent-hint">没有听到声音，请再试一次</p>
+                    )}
                     <VoiceButton
                         disabled={voiceButtonDisabled}
                         sharedStream={sharedStream}

@@ -147,3 +147,10 @@
     flex-direction: column;
     justify-content: center;
 }
+
+.silent-hint {
+    color: #e53e3e;
+    font-size: 0.85rem;
+    margin: 0 0 8px 0;
+    animation: fadeIn 0.3s ease-in;
+}
