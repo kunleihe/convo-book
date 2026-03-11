@@ -192,7 +192,7 @@ const InteractivePanel = ({
 
                 <div className="voice-controls">
                     {silentHint && (
-                        <p className="silent-hint">没有听到声音，请再试一次</p>
+                        <p className="silent-hint">No speech detected. Please try again.</p>
                     )}
                     <VoiceButton
                         disabled={voiceButtonDisabled}
