@@ -44,7 +44,7 @@ async def chat(request: ChatRequest):
             f"You may also refer to the reference passage below:"
         )
     else:
-        custom_prompt_block = "the reference passage below:"
+        custom_prompt_block = ""
 
     system_prompt = (
         template
