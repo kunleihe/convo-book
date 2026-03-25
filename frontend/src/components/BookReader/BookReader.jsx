@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Container, Alert, Spinner, Button } from 'react-bootstrap';
+import { Container, Alert, Spinner, Button, Modal } from 'react-bootstrap';
 import Draggable from 'react-draggable';
 import { loadBookData, getPageData } from '../../utils/bookDataLoader';
 import { saveReadingProgress, clearReadingProgress } from '../../utils/storageUtils';
@@ -26,6 +26,9 @@ const BookReader = () => {
     const [currentPage, setCurrentPage] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // End-of-book modal
+    const [showEndModal, setShowEndModal] = useState(false);
 
     // Chat panel state
     const [showChatPanel, setShowChatPanel] = useState(false);
@@ -340,7 +343,7 @@ const BookReader = () => {
                 navigateToPage(currentPageNum + 1);
             } else {
                 clearReadingProgress(bookId);
-                navigate('/');
+                setShowEndModal(true);
             }
             return;
         }
@@ -350,7 +353,7 @@ const BookReader = () => {
             navigateToPage(currentPageNum + 1);
         } else {
             clearReadingProgress(bookId);
-            navigate('/');
+            setShowEndModal(true);
         }
     };
 
@@ -506,6 +509,14 @@ const BookReader = () => {
                     </div>
                 </Draggable>
             )}
+
+            {/* End-of-book modal */}
+            <Modal show={showEndModal} centered backdrop="static" keyboard={false}>
+                <Modal.Body className="text-center py-5">
+                    <h4 className="mb-3">Great job finishing the book!</h4>
+                    <p className="text-muted fs-5">Please close this website and return to Zoom.</p>
+                </Modal.Body>
+            </Modal>
 
             {/* Layer 3: Bottom Control Bar */}
             <div className="bottom-control-bar">
