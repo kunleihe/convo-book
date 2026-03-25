@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
 import { Container, Card, Form, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import zoomShare from '../../assets/zoom-share.png';
 import zoomAudioVideo from '../../assets/zoom-audio-video.png';
 
 const STEPS = [
-  {
-    id: 'share-screen',
-    image: zoomShare,
-    alt: 'Zoom toolbar with Share button highlighted',
-    label: 'Click "Share" in Zoom to share your screen.',
-  },
   {
     id: 'mute-av',
     image: zoomAudioVideo,
