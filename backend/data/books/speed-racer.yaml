@@ -32,7 +32,7 @@ pages:
         text: |
           Let's take a moment to chat together!
           Did you ever ride in a car going really fast? How did it feel?
-        audio_uri: audios/questions/page-02-q1.mp3
+          Please talk to each other and share with me!
         custom_prompt: "As long as the child's response is relevant, accept whatever the response is, provide positive feedback, and set is_final: true in your response."
 
   - page_number: 3
@@ -85,8 +85,7 @@ pages:
       Elinor, scratching her chin. "I wonder how we can make our car go faster."
     questions:
       - id: q1
-        text: Now here's something to think about. What can Elinor and her friends do to make their car go faster?
-        audio_uri: audios/questions/page-07-q2.mp3
+        text: Now here's something for both of you to think about together. What can Elinor and her friends do to make their car go faster?
 
   - page_number: 8
     image_uri: images/page-08.png
@@ -120,7 +119,6 @@ pages:
     questions:
       - id: q1
         text: "Elinor, Olive, and Ari painted their car yellow and drew a racing stripe. Will Elinor's car go as fast as Camila's car? Why or why not?"
-        audio_uri: audios/questions/page-12-q1.mp3
         custom_prompt: "Expected answer: No. Because color doesn't change how fast a car goes."
 
   - page_number: 11
@@ -163,7 +161,6 @@ pages:
     questions:
       - id: q1
         text: "Now Elinor and her friends added a cupholder to the car. Will Elinor's car go as fast as Camila's car? Why or why not?"
-        audio_uri: audios/questions/page-16-q1.mp3
         custom_prompt: "Expected answer: No. Because adding a cupholder doesn't change how fast a car goes."
 
   - page_number: 15
@@ -251,7 +248,6 @@ pages:
         text: |
           Let's stop here for a second and chat about something together.
           Camilla's car looks like a bird or a fish. What is the same about their shapes?
-        audio_uri: audios/questions/page-22-q1.mp3
 
   - page_number: 23
     image_uri: images/page-23.png
@@ -265,7 +261,7 @@ pages:
         text: |
           A streamlined shape is pointy in the front and round in the middle, like a bird or a fish.
           What are some things in your life that have a streamlined shape?
-        audio_uri: audios/questions/page-23-q2.mp3
+          Please talk to each other and share your thoughts with me!
 
   - page_number: 24
     image_uri: images/page-24.png
@@ -276,8 +272,9 @@ pages:
       but boxy things get slowed down." explained Mr. Rabbit.
     questions:
       - id: q1
+        text: Here's something for both of you to think about! Why do pointy things move fast?
+      - id: q2
         text: Another question! Why do boxy things move slower than pointy things?
-        audio_uri: audios/questions/page-24-q2.mp3
 
   - page_number: 25
     image_uri: images/page-25.png
@@ -300,7 +297,6 @@ pages:
         text: |
           Now Elinor's car and Camilla's car are both streamlined.
           Do you think that Elinor's car will go as fast as Camilla's car? Why or why not?
-        audio_uri: audios/questions/page-26-q1.mp3
         custom_prompt: "Expected answer: Yes, Because now Elinor's car is streamlined, so it can move through the air more easily."
 
   - page_number: 27

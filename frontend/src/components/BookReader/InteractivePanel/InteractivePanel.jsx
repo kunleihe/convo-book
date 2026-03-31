@@ -131,6 +131,11 @@ const InteractivePanel = ({
         const isUser = msg.role === 'user';
         return (
             <div key={msg.id} className={`chat-message ${isUser ? 'user-message' : 'ai-message'}`}>
+                {!isUser && (
+                    <div className="avatar-container">
+                        <img src="/fox.png" alt="AI" className="avatar-image" />
+                    </div>
+                )}
                 <div className={`message-text ${isUser ? 'user-text' : 'ai-text'}`}>
                     {msg.content}
                 </div>
@@ -168,6 +173,9 @@ const InteractivePanel = ({
                     {question && (
                         <div className="question-section">
                             <div className="chat-message ai-message">
+                                <div className="avatar-container">
+                                    <img src="/fox.png" alt="AI" className="avatar-image" />
+                                </div>
                                 <div className="message-text ai-text">
                                     {question.questionText}
                                 </div>

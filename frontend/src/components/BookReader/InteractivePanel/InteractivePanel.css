@@ -60,11 +60,16 @@
 }
 
 .avatar-container {
-    display: none;
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
 }
 
 .avatar-image {
-    display: none;
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    object-fit: contain;
 }
 
 .message-text {
