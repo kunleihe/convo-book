@@ -332,3 +332,8 @@ pages:
       "You were so fast, Elinor!" Ari called out.
       "That was awesome!" shouted Olive, jumping with joy.
     questions: []
+
+  - page_number: 31
+    image_uri: images/outro.png
+    text: "outro page"
+    questions: []
