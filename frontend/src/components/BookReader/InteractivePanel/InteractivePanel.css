@@ -45,7 +45,6 @@
     flex-direction: column;
     padding: 0.5rem 1rem 1rem;
     min-height: 0;
-    gap: 6px;
 }
 
 /* ── Avatar section ── */
@@ -55,7 +54,6 @@
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    gap: 10px;
     min-height: 0;
 }
 

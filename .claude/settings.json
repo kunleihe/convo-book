@@ -8,7 +8,18 @@
       "Bash(xxd /Users/kunleihe/Documents/research/digital-learning-lab/convo-book/frontend/node_modules/vite/bin/vite.js)",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''type:'''', d.get\\(''''type''''\\)\\); print\\(''''engines:'''', d.get\\(''''engines''''\\)\\)\")",
       "Bash(node node_modules/vite/bin/vite.js --version)",
-      "Bash(python3 -c \"import sys,json; json.load\\(sys.stdin\\); print\\(''''valid JSON''''\\)\")"
+      "Bash(python3 -c \"import sys,json; json.load\\(sys.stdin\\); print\\(''''valid JSON''''\\)\")",
+      "Bash(git checkout:*)",
+      "Read(//Users/kunleihe/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/brainstorming/**)",
+      "Bash(bash scripts/start-server.sh --project-dir /Users/kunleihe/Documents/research/digital-learning-lab/convo-book)",
+      "Bash(git commit:*)",
+      "Read(//Users/kunleihe/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/subagent-driven-development/**)",
+      "Bash(git -C /Users/kunleihe/Documents/research/digital-learning-lab/convo-book show db6276a:frontend/src/components/BookReader/InteractivePanel/InteractivePanel.css)",
+      "Bash(git -C /Users/kunleihe/Documents/research/digital-learning-lab/convo-book show ca9e61e:frontend/src/components/BookReader/InteractivePanel/InteractivePanel.css)",
+      "Bash(git -C /Users/kunleihe/Documents/research/digital-learning-lab/convo-book show db6276a:frontend/src/components/BookReader/InteractivePanel/InteractivePanel.jsx)",
+      "Bash(git -C /Users/kunleihe/Documents/research/digital-learning-lab/convo-book log --oneline ca9e61e..db6276a)",
+      "Bash(npm run:*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }
