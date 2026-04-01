@@ -129,7 +129,8 @@ const InteractivePanel = ({
         }
     }, [transcriptionWS, httpChat]);
 
-    // --- Render ---
+    // --- Render --- (will be removed in Task 4)
+    // eslint-disable-next-line no-unused-vars
     const renderMessage = (msg) => {
         const isUser = msg.role === 'user';
         return (
@@ -145,6 +146,15 @@ const InteractivePanel = ({
             </div>
         );
     };
+
+    // 气泡文字：优先显示最后一条 AI 消息，否则显示问题文字
+    const lastAiMessage = httpChat.conversationMessages
+        .filter((m) => m.role === 'assistant')
+        .at(-1);
+    const displayText = lastAiMessage?.content || question?.questionText || '';
+
+    // Avatar 图片：录音中或加载中显示 listen，其余显示 speak
+    const avatarSrc = (isUserRecording || httpChat.isLoading) ? '/listen.gif' : '/speak.gif';
 
     const voiceButtonDisabled =
         httpChat.isAiSpeaking ||
@@ -171,34 +181,27 @@ const InteractivePanel = ({
             </div>
 
             <div className="panel-content">
-                <div className="chat-messages">
-                    {/* Initial question bubble */}
-                    {question && (
-                        <div className="question-section">
-                            <div className="chat-message ai-message">
-                                <div className="avatar-container">
-                                    <img src="/fox.png" alt="AI" className="avatar-image" />
-                                </div>
-                                <div className="message-text ai-text">
-                                    {question.questionText}
-                                </div>
+                <div className="avatar-section">
+                    {/* Content above avatar — three exclusive states */}
+                    {isUserRecording ? (
+                        <div className="sound-wave">
+                            {[...Array(7)].map((_, i) => (
+                                <div key={i} className="wave-bar" />
+                            ))}
+                        </div>
+                    ) : httpChat.isLoading ? (
+                        <div className="ai-bubble">
+                            <div className="loading-dots">
+                                <span className="dot" />
+                                <span className="dot" />
+                                <span className="dot" />
                             </div>
                         </div>
+                    ) : (
+                        <div className="ai-bubble">{displayText}</div>
                     )}
 
-                    {/* Conversation history */}
-                    {httpChat.conversationMessages.map(renderMessage)}
-
-                    {/* Ghost bubble: real-time transcription while recording */}
-                    {currentUserTranscript && (
-                        <div className="chat-message user-message">
-                            <div className="message-text user-text" style={{ opacity: 0.5, fontStyle: 'italic' }}>
-                                {currentUserTranscript}
-                            </div>
-                        </div>
-                    )}
-
-                    <div ref={messagesEndRef} />
+                    <img src={avatarSrc} alt="AI" className="avatar-image" />
                 </div>
 
                 <div className="voice-controls">
