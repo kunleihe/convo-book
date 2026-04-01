@@ -61,7 +61,7 @@
 }
 
 .center-controls {
-    display: none;
+    display: flex;
 }
 
 /* Button Styling */
@@ -251,6 +251,14 @@
     white-space: nowrap;
     flex-shrink: 0;
     font-variant-numeric: tabular-nums;
+}
+
+/* Page Indicator */
+.page-indicator {
+    font-size: 14px;
+    color: #666;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 /* Pop-in animation */
