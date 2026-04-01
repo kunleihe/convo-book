@@ -125,8 +125,8 @@ const InteractivePanel = ({
         .at(-1);
     const displayText = lastAiMessage?.content || question?.questionText || '';
 
-    // Avatar 图片：录音中或加载中显示 listen，其余显示 speak
-    const avatarSrc = (isUserRecording || httpChat.isLoading) ? '/listen.gif' : '/speak.gif';
+    // Avatar 图片：TTS 实际播放时显示 speak，其余（idle、录音中、加载中）显示 listen
+    const avatarSrc = (isAudioPlaying || httpChat.isAiSpeaking) ? '/speak.gif' : '/listen.gif';
 
     const voiceButtonDisabled =
         httpChat.isAiSpeaking ||

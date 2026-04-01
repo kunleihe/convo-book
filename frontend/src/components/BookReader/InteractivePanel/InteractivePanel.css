@@ -60,24 +60,53 @@
 }
 
 .avatar-image {
-    width: 120px;
-    height: 120px;
+    width: 160px;
+    height: 160px;
     border-radius: 12px;
     object-fit: contain;
 }
 
 /* ── AI speech bubble ── */
 .ai-bubble {
+    position: relative;
     background: #f2f2f7;
     border: 1px solid #e5e5ea;
     border-radius: 16px;
-    border-bottom-left-radius: 4px;
     padding: 14px 18px;
     font-size: 18px;
     color: #333;
     line-height: 1.5;
     width: 100%;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    margin-bottom: 6px;
+}
+
+/* Downward-pointing tail — border layer */
+.ai-bubble::before {
+    content: '';
+    position: absolute;
+    bottom: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-top: 12px solid #e5e5ea;
+}
+
+/* Downward-pointing tail — fill layer */
+.ai-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -11px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid #f2f2f7;
 }
 
 /* ── Loading dots ── */
