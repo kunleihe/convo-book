@@ -18,28 +18,24 @@ const InteractivePanel = ({
     onQuestionComplete,
 }) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(!!question?.questionText);
-    // Ghost bubble: real-time transcription delta while recording
-    const [currentUserTranscript, setCurrentUserTranscript] = useState('');
     // Gate between recording-stop and submit completing to prevent double presses
     const [isProcessingTranscript, setIsProcessingTranscript] = useState(false);
     const [silentHint, setSilentHint] = useState(false);
     const [isUserRecording, setIsUserRecording] = useState(false);
 
-    const messagesEndRef = useRef(null);
     const silentHintTimerRef = useRef(null);
 
     // --- Hooks ---
     const httpChat = useHTTPChat();
 
     const transcriptionWS = useTranscriptionWebSocket(
-        useCallback((delta) => setCurrentUserTranscript((prev) => prev + delta), [])
+        useCallback(() => {}, [])
     );
 
     // --- Lifecycle: initialize on question/page change ---
     useEffect(() => {
         if (question && bookId && pageNumber) {
             transcriptionWS.clearAccumulatedTranscript();
-            setCurrentUserTranscript('');
             setIsUserRecording(false);
             setSilentHint(false);
             httpChat.initialize(bookId, pageNumber, question, pageText);
@@ -69,11 +65,6 @@ const InteractivePanel = ({
             updateAudioState(false);
         };
     }, [question]);
-
-    // --- Auto-scroll ---
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [httpChat.conversationMessages, currentUserTranscript]);
 
     // --- Helpers ---
     const updateAudioState = (playing) => {
@@ -115,7 +106,6 @@ const InteractivePanel = ({
         try {
             transcriptionWS.commitAudioBuffer(); // fallback flush
             const text = transcriptionWS.getFinalTranscript();
-            setCurrentUserTranscript('');
             if (options.isSilent || !text) {
                 transcriptionWS.clearAccumulatedTranscript();
                 setSilentHint(true);
@@ -128,24 +118,6 @@ const InteractivePanel = ({
             setIsProcessingTranscript(false);
         }
     }, [transcriptionWS, httpChat]);
-
-    // --- Render --- (will be removed in Task 4)
-    // eslint-disable-next-line no-unused-vars
-    const renderMessage = (msg) => {
-        const isUser = msg.role === 'user';
-        return (
-            <div key={msg.id} className={`chat-message ${isUser ? 'user-message' : 'ai-message'}`}>
-                {!isUser && (
-                    <div className="avatar-container">
-                        <img src="/fox.png" alt="AI" className="avatar-image" />
-                    </div>
-                )}
-                <div className={`message-text ${isUser ? 'user-text' : 'ai-text'}`}>
-                    {msg.content}
-                </div>
-            </div>
-        );
-    };
 
     // 气泡文字：优先显示最后一条 AI 消息，否则显示问题文字
     const lastAiMessage = httpChat.conversationMessages
@@ -216,10 +188,7 @@ const InteractivePanel = ({
                                 transcriptionWS.sendAudioData(pcm16Data);
                             }
                         }}
-                        onRecordingStart={() => {
-                            setCurrentUserTranscript('');
-                            setIsUserRecording(true);
-                        }}
+                        onRecordingStart={() => setIsUserRecording(true)}
                         onRecordingComplete={handleRecordingComplete}
                     />
                 </div>
