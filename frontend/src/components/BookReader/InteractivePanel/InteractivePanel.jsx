@@ -23,6 +23,7 @@ const InteractivePanel = ({
     // Gate between recording-stop and submit completing to prevent double presses
     const [isProcessingTranscript, setIsProcessingTranscript] = useState(false);
     const [silentHint, setSilentHint] = useState(false);
+    const [isUserRecording, setIsUserRecording] = useState(false);
 
     const messagesEndRef = useRef(null);
     const silentHintTimerRef = useRef(null);
@@ -39,6 +40,7 @@ const InteractivePanel = ({
         if (question && bookId && pageNumber) {
             transcriptionWS.clearAccumulatedTranscript();
             setCurrentUserTranscript('');
+            setIsUserRecording(false);
             setSilentHint(false);
             httpChat.initialize(bookId, pageNumber, question, pageText);
             transcriptionWS.connect();
@@ -108,6 +110,7 @@ const InteractivePanel = ({
     };
 
     const handleRecordingComplete = useCallback((options = {}) => {
+        setIsUserRecording(false);
         setIsProcessingTranscript(true);
         try {
             transcriptionWS.commitAudioBuffer(); // fallback flush
@@ -210,7 +213,10 @@ const InteractivePanel = ({
                                 transcriptionWS.sendAudioData(pcm16Data);
                             }
                         }}
-                        onRecordingStart={() => setCurrentUserTranscript('')}
+                        onRecordingStart={() => {
+                            setCurrentUserTranscript('');
+                            setIsUserRecording(true);
+                        }}
                         onRecordingComplete={handleRecordingComplete}
                     />
                 </div>
