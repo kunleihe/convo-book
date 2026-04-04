@@ -154,14 +154,8 @@ const InteractivePanel = ({
 
             <div className="panel-content">
                 <div className="avatar-section">
-                    {/* Content above avatar — three exclusive states */}
-                    {isUserRecording ? (
-                        <div className="sound-wave">
-                            {[...Array(7)].map((_, i) => (
-                                <div key={i} className="wave-bar" />
-                            ))}
-                        </div>
-                    ) : httpChat.isLoading ? (
+                    {/* Bubble always visible above avatar */}
+                    {httpChat.isLoading ? (
                         <div className="ai-bubble">
                             <div className="loading-dots">
                                 <span className="dot" />
@@ -174,6 +168,15 @@ const InteractivePanel = ({
                     )}
 
                     <img src={avatarSrc} alt="AI" className="avatar-image" />
+
+                    {/* Sound wave below avatar — only when recording */}
+                    {isUserRecording && (
+                        <div className="sound-wave">
+                            {[...Array(7)].map((_, i) => (
+                                <div key={i} className="wave-bar" />
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <div className="voice-controls">
