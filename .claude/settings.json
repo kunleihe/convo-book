@@ -19,7 +19,8 @@
       "Bash(git -C /Users/kunleihe/Documents/research/digital-learning-lab/convo-book show db6276a:frontend/src/components/BookReader/InteractivePanel/InteractivePanel.jsx)",
       "Bash(git -C /Users/kunleihe/Documents/research/digital-learning-lab/convo-book log --oneline ca9e61e..db6276a)",
       "Bash(npm run:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(git push:*)"
     ]
   }
 }
