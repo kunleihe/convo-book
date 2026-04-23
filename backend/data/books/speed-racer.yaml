@@ -1,0 +1,339 @@
+metadata:
+  id: speed-racer
+  title: Speed Racer
+  uri_prefix: books/speed-racer/
+  cover_uri: images/cover.png
+
+pages:
+  - page_number: 1
+    image_uri: images/page-01.png
+    narration_uri: audios/narration/page-01.wav
+    text: |
+      It was a bright and sunny day when Elinor and her friends, Ari and Olive,
+      built a brand-new car. They used cardboard boxes, colorful crayons, and lots of
+      tape.
+      "Wow! Our car looks amazing!" said Ari the bat, full of excitement.
+      "It sure does, Ari! And those are some super cool decorations, Olive," said Elinor
+      the bunny, admiring their creation.
+      "Thanks!" replied Olive the elephant with a proud smile.
+    questions: []
+
+  - page_number: 2
+    image_uri: images/page-02.png
+    narration_uri: audios/narration/page-02.wav
+    text: |
+      Just then, Mr. Rabbit walked over to see the car.
+      "Do you think it'll go fast, Mr. Rabbit?" asked Olive curiously.
+      "I want to feel the wind in my ears!" added Elinor.
+      "Well, there's only one way to find out," said Mr. Rabbit. "Are you going to take
+      it for a ride?"
+    questions:
+      - id: q1
+        text: |
+          Let's take a moment to chat together!
+          Did you ever ride in a car going really fast? How did it feel?
+          Please talk to each other and share with me!
+        custom_prompt: "As long as the child's response is relevant, accept whatever the response is, provide positive feedback, and set is_final: true in your response."
+
+  - page_number: 3
+    image_uri: images/page-03.png
+    narration_uri: audios/narration/page-03.wav
+    text: |
+      Elinor, Ari, and Olive pushed their car to the top of a small hill. Elinor
+      climbed in and put on her helmet. She gave a big, brave nod—she was ready! Ari and
+      Olive stood behind the car, their hands ready to push.
+      "Three… two… one… GO!" they shouted.
+      With a big shove, the car zoomed forward!
+    questions: []
+
+  - page_number: 4
+    image_uri: images/page-04.png
+    narration_uri: audios/narration/page-04.wav
+    text: |
+      WHEE! Elinor zoomed down the hill in her cardboard car.
+      VROOOM! Suddenly, Camilla zipped by in a shiny yellow car.
+      "Coming through!" she called out cheerfully.
+    questions: []
+
+  - page_number: 5
+    image_uri: images/page-05.png
+    narration_uri: audios/narration/page-05.wav
+    text: |
+      "Hi, Camilla! Your car is amazing!" said Elinor with a grin.
+      "Thanks, Elinor! It's brand new. I got it for my birthday. I call it The Camilla
+      Convertible!" said Camilla proudly.
+    questions: []
+
+  - page_number: 6
+    image_uri: images/page-06.png
+    narration_uri: audios/narration/page-06.wav
+    text: |
+      The three friends looked at Camilla's car. Camilla's car was so cool—and
+      really fast. It was bright yellow, with a racing stripe. It even had a nice cup
+      holder inside!
+    questions: []
+
+  - page_number: 7
+    image_uri: images/page-07.png
+    narration_uri: audios/narration/page-07.wav
+    text: |
+      The three friends looked at Camilla's car. Camilla's car was so cool—and
+      really fast. It was bright yellow, with a racing stripe. It even had a nice cup
+      holder inside!
+      "Your car is nice, too!" said Camilla kindly.
+      "Thanks, Camilla! We made it ourselves. But it's not going as fast as yours," said
+      Elinor, scratching her chin. "I wonder how we can make our car go faster."
+    questions:
+      - id: q1
+        text: Now here's something for both of you to think about together. What can Elinor and her friends do to make their car go faster?
+
+  - page_number: 8
+    image_uri: images/page-08.png
+    narration_uri: audios/narration/page-08.wav
+    text: |
+      "Your car is nice, too!" said Camilla kindly.
+      "Thanks, Camilla! We made it ourselves. But it's not going as fast as yours," said
+      Elinor, scratching her chin. "I wonder how we can make our car go faster."
+    questions: []
+
+  - page_number: 9
+    image_uri: images/page-09.png
+    narration_uri: audios/narration/page-09.wav
+    text: |
+      I know! Maybe it's the color!" Ari suggested. "If we paint our car yellow
+      and add stripes like Camilla's, it might go faster!" "That's a great idea!" agreed
+      Elinor. "Let's take it back to your house and make some changes," said Olive.
+    questions: []
+
+  - page_number: 10
+    image_uri: images/page-10.png
+    narration_uri: audios/narration/page-10.wav
+    text: |
+      Back at Elinor's house, Elinor, Olive, and Ari painted their car bright
+      yellow. They added a red stripe too, just like Camilla's car. When Mr. Rabbit came
+      by and saw the car, he looked curious. He was curious why the kids painted their car.
+      "Why did you paint it?" asked Mr. Rabbit.
+      "Well, Camilla has a fast car, and it's yellow," Ari explained.
+      "With a racing stripe, just like this!" said Olive.
+      "We thought if we made our car the same color as hers, our car might go faster, too!" said Elinor.
+    questions:
+      - id: q1
+        text: "Elinor, Olive, and Ari painted their car yellow and drew a racing stripe. Will Elinor's car go as fast as Camila's car? Why or why not?"
+        custom_prompt: "Expected answer: No. Because color doesn't change how fast a car goes."
+
+  - page_number: 11
+    image_uri: images/page-11.png
+    narration_uri: audios/narration/page-11.wav
+    text: |
+      Elinor and her friends were excited to try out the newly painted car.
+      They were ready for another test run. After waving goodbye to Mr. Rabbit, they
+      began pushing the car back up the hill. Just then, a bird zipped past overhead.
+      "Whoa! That bird is so fast! I can't wait to see how fast we go!" said Elinor.
+    questions: []
+
+  - page_number: 12
+    image_uri: images/page-12.png
+    narration_uri: audios/narration/page-12.wav
+    text: |  
+      Ari and Olive got behind the car and gave it a big push. Their yellow car
+      rolled down the hill. Elinor held on tight and laughed as the wind blew past her.
+    questions: []
+
+  - page_number: 13
+    image_uri: images/page-13.png
+    narration_uri: audios/narration/page-13.wav
+    text: |
+      VROOOM! Camilla zoomed past again. Elinor's car wasn't any faster. Painting
+      it hadn't helped. Ari looked sad. Olive looked confused. They all wondered what
+      to try next.
+      Then, they saw Camilla take a drink from her car. Ari remembered—her car had a cup
+      holder! Their car didn't have one. Maybe that was the secret?
+      So, the friends decided to add a cup holder to their car.
+    questions: []
+
+  - page_number: 14
+    image_uri: images/page-14.png
+    narration_uri: audios/narration/page-14.wav
+    text: |
+      Elinor, Ari, and Olive added a cup holder in their car, just like Camilla's.
+      "Now, our car has a cup holder, too." said Elinor, full of excitement," I bet that's
+      gonna make it faster! Let's go try it out!"
+    questions:
+      - id: q1
+        text: "Now Elinor and her friends added a cupholder to the car. Will Elinor's car go as fast as Camila's car? Why or why not?"
+        custom_prompt: "Expected answer: No. Because adding a cupholder doesn't change how fast a car goes."
+
+  - page_number: 15
+    image_uri: images/page-15.png
+    narration_uri: audios/narration/page-15.wav
+    text: |
+      Elinor, Ari, and Olive pushed their car up the hill again. As they went,
+      Ari saw some fish jumping in the river. He stopped to watch them swim, but in a
+      flash, the fish were gone.
+      "Whoa, those are some fast fish!" said Ari.
+    questions: []
+
+  - page_number: 16
+    image_uri: images/page-16.png
+    narration_uri: audios/narration/page-16.wav
+    text: |
+      It was time to test the car again! Now it had a cup holder, just like
+      Camilla's.
+      Elinor climbed in, ready to go. With a big push from Olive and Ari, the car began
+      to roll down the hill.
+    questions: []
+
+
+  - page_number: 17
+    image_uri: images/page-17.png
+    narration_uri: audios/narration/page-17.wav
+    text: |
+      VROOOM! Camilla went by fast, just like before.
+      "Adding a cup holder didn't make the car go faster." said Elinor, puzzled, "Hmm…
+      What else is different about our car?"
+    questions: []
+
+  - page_number: 18
+    image_uri: images/page-18.png
+    narration_uri: audios/narration/page-18.wav
+    text: |
+      Olive took out her notebook and pen from her bag. She looked closely at
+      the cars and began to draw—first Camila's car, then Elinor's.
+      "Wait a minute," said Olive, thinking hard. "I noticed something! Our car is boxy,
+      but Camilla's car has a different shape!"
+    questions:
+      - id: q1
+        text: |
+          Look, Elinor's car and Camilla's car have different shapes.
+          Let's make a closer observation at the two cars.
+          How is the shape of Camilla's car different from the shape of Elinor's car?
+        audio_uri: audios/questions/page-18-q1.mp3
+
+  - page_number: 19
+    image_uri: images/page-19.png
+    narration_uri: audios/narration/page-19.wav
+    text: |
+      "Oh! I see the difference!" said Elinor, "You're right! We need to change
+      the shape of our car! C'mon, let's go back to my yard."
+    questions: []
+
+  - page_number: 20
+    image_uri: images/page-20.png
+    narration_uri: audios/narration/page-20.wav
+    text: |
+      "Okay, let's change the shape of our car," announced Olive.
+      "Are we sure this is going to work?" wondered Ari.
+      "Maybe we should think about other things that move fast, just to be sure!" suggested Elinor.
+    questions: []
+
+  - page_number: 21
+    image_uri: images/page-21.png
+    narration_uri: audios/narration/page-21.wav
+    text: |
+      The kids thought about all the fast things in nature.
+      They remembered a bird zooming through the sky, and a fish swimming fast in the
+      river.
+    questions: []
+
+  - page_number: 22
+    image_uri: images/page-22.png
+    narration_uri: audios/narration/page-22.wav
+    text: |
+      Olive opened her notebook again. She drew a flying bird and a swimming fish.
+      "Wait a second! They're all sort of the same shape!" shouted Ari.
+      "Camilla's car, the bird, and the fish—they are all pointy in the front and round in the middle." explained Olive.
+      "And they're all fast!" cheered Elinor.
+    questions:
+      - id: q1
+        text: |
+          Let's stop here for a second and chat about something together.
+          Camilla's car looks like a bird or a fish. What is the same about their shapes?
+
+  - page_number: 23
+    image_uri: images/page-23.png
+    narration_uri: audios/narration/page-23.wav
+    text: |
+      Mr. Rabbit heard the kids talking about the shapes of fast things. He
+      walked over with a big smile on his face.
+      "Oh yes," he said. "That's called being streamlined."
+    questions:
+      - id: q1
+        text: |
+          A streamlined shape is pointy in the front and round in the middle, like a bird or a fish.
+          What are some things in your life that have a streamlined shape?
+          Please talk to each other and share your thoughts with me!
+
+  - page_number: 24
+    image_uri: images/page-24.png
+    narration_uri: audios/narration/page-24.wav
+    text: |
+      "Being streamlined means it's easier for the air to go around you, instead
+      of pushing you back.  So, things that are streamlined can move through air faster,
+      but boxy things get slowed down." explained Mr. Rabbit.
+    questions:
+      - id: q1
+        text: Here's something for both of you to think about! Why do pointy things move fast?
+      - id: q2
+        text: Another question! Why do boxy things move slower than pointy things?
+
+  - page_number: 25
+    image_uri: images/page-25.png
+    narration_uri: audios/narration/page-25.wav
+    text: |
+      With Mr. Rabbit's help, the kids carefully cut and folded their cardboard car.
+      They made the front pointy—like a flying bird or a swimming fish.
+      "Now, it's a lot pointier," noticed Elinor.
+      "Let's go try it!" called Ari.
+    questions: []
+
+  - page_number: 26
+    image_uri: images/page-26.png
+    narration_uri: audios/narration/page-26.wav
+    text: |
+      Then, Elinor, Olive, and Ari pushed their car back up the hill for one
+      more try. Their new car had a pointy shape. They were all set to race Camilla again!
+    questions:
+      - id: q1
+        text: |
+          Now Elinor's car and Camilla's car are both streamlined.
+          Do you think that Elinor's car will go as fast as Camilla's car? Why or why not?
+        custom_prompt: "Expected answer: Yes, Because now Elinor's car is streamlined, so it can move through the air more easily."
+
+  - page_number: 27
+    image_uri: images/page-27.png
+    narration_uri: audios/narration/page-27.wav
+    text: |
+      VROOM! Down the hill they zoomed.
+      Elinor felt the wind in her ears.
+    questions: []
+
+  - page_number: 28
+    image_uri: images/page-28.png
+    narration_uri: audios/narration/page-28.wav
+    text: |
+      This time, Elinor's car went just as fast as Camilla's. They raced all
+      the way down and reached the bottom at the same time!
+      "You did it, Elinor! The car you made is just as fast as mine!" cheered Camilla,
+      giving Elinor a big high-five.
+    questions: []
+
+  - page_number: 29
+    image_uri: images/page-29.png
+    narration_uri: audios/narration/page-29.wav
+    text: |
+      "Yep, all because of its pointy shape, which we learned from nature. It's
+      streamlined! Like a bird or a fish!" explained Elinor proudly.
+    questions: []
+
+  - page_number: 30
+    image_uri: images/page-30.png
+    narration_uri: audios/narration/page-30.wav
+    text: |
+      "You were so fast, Elinor!" Ari called out.
+      "That was awesome!" shouted Olive, jumping with joy.
+    questions: []
+
+  - page_number: 31
+    image_uri: images/outro.png
+    text: "outro page"
+    questions: []
