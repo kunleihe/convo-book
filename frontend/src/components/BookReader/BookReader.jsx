@@ -374,7 +374,6 @@ const BookReader = () => {
                 </div>
 
                 <div className="right-controls">
-                    <span className="page-indicator">{parseInt(pageNumber, 10)}/{bookData.totalPages}</span>
                     <button
                         className="btn-control btn-next"
                         disabled={!canPerformAction()}
