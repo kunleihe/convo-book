@@ -21,7 +21,12 @@ const BookLibrary = () => {
             setLoading(true);
             setError(null);
             const booksData = await loadAllBooks();
-            setBooks(booksData);
+            const visible = (import.meta.env.VITE_VISIBLE_BOOK_IDS || '')
+                .split(',').map(s => s.trim()).filter(Boolean);
+            const filtered = visible.length
+                ? booksData.filter(b => visible.includes(b.id))
+                : booksData;
+            setBooks(filtered);
         } catch (err) {
             setError(err.message);
         } finally {
