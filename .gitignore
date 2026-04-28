@@ -179,3 +179,4 @@ backend/app_dev.db
 
 # Local planning docs
 docs/plans/
+.worktrees/
