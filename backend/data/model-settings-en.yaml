@@ -32,6 +32,8 @@ textModel:
 round1PromptTemplate: |
   You are a science tutor for young children (aged 4-7). This is round 1 of at most 2 rounds.
 
+  Note: If the child's input is literally "[no response]", treat it as Silence (the child said nothing within 10s).
+
   **YOUR RESPONSE MUST INCLUDE:**
   - "response": Your feedback text to the child
   - "is_final":
@@ -84,6 +86,8 @@ round1PromptTemplate: |
 #
 round2PromptTemplate: |
   You are a science tutor for young children (aged 6-8). This is round 2 - the FINAL round.
+
+  Note: If the child's input is literally "[no response]", treat it as Silence (the child said nothing within 10s).
 
   The child just answered your scaffolding question. Evaluate their response against:
 

@@ -16,14 +16,15 @@ const InteractivePanel = ({
     sharedStream = null,
     pageText = '',
     onQuestionComplete,
+    onAiSpeakingChange,
 }) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(!!question?.questionText);
     // Gate between recording-stop and submit completing to prevent double presses
     const [isProcessingTranscript, setIsProcessingTranscript] = useState(false);
-    const [silentHint, setSilentHint] = useState(false);
     const [isUserRecording, setIsUserRecording] = useState(false);
+    const [shouldRecord, setShouldRecord] = useState(false);
 
-    const silentHintTimerRef = useRef(null);
+    const prevIsAiSpeakingRef = useRef(false);
 
     // --- Hooks ---
     const httpChat = useHTTPChat();
@@ -37,13 +38,13 @@ const InteractivePanel = ({
         if (question && bookId && pageNumber) {
             transcriptionWS.clearAccumulatedTranscript();
             setIsUserRecording(false);
-            setSilentHint(false);
+            setShouldRecord(false);
+            prevIsAiSpeakingRef.current = false;
             httpChat.initialize(bookId, pageNumber, question, pageText);
             transcriptionWS.connect();
         }
         return () => {
             transcriptionWS.disconnect();
-            if (silentHintTimerRef.current) clearTimeout(silentHintTimerRef.current);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [question?.id, bookId, pageNumber]);
@@ -55,6 +56,23 @@ const InteractivePanel = ({
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [httpChat.questionComplete]);
+
+    // --- Pipe isAiSpeaking up so BookReader can wait for TTS before turning page ---
+    useEffect(() => {
+        onAiSpeakingChange?.(httpChat.isAiSpeaking);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [httpChat.isAiSpeaking]);
+
+    // --- Auto-start recording on falling edge of AI speaking (round >= 2) ---
+    useEffect(() => {
+        if (prevIsAiSpeakingRef.current && !httpChat.isAiSpeaking) {
+            if (!httpChat.questionComplete && !httpChat.isLoading) {
+                console.log('[InteractivePanel] AI finished — auto-starting next round recording');
+                setShouldRecord(true);
+            }
+        }
+        prevIsAiSpeakingRef.current = httpChat.isAiSpeaking;
+    }, [httpChat.isAiSpeaking, httpChat.questionComplete, httpChat.isLoading]);
 
     // --- Question audio playback ---
     useEffect(() => {
@@ -92,7 +110,11 @@ const InteractivePanel = ({
 
             const audioObjectUrl = URL.createObjectURL(audioBlob);
             const audio = new Audio(audioObjectUrl);
-            audio.onended = () => { URL.revokeObjectURL(audioObjectUrl); updateAudioState(false); };
+            audio.onended = () => {
+                URL.revokeObjectURL(audioObjectUrl);
+                updateAudioState(false);
+                setShouldRecord(true); // auto-record once question audio finishes
+            };
             audio.onerror = () => { URL.revokeObjectURL(audioObjectUrl); updateAudioState(false); };
             await audio.play();
         } catch {
@@ -102,15 +124,20 @@ const InteractivePanel = ({
 
     const handleRecordingComplete = useCallback((options = {}) => {
         setIsUserRecording(false);
+        setShouldRecord(false);
         setIsProcessingTranscript(true);
         try {
             transcriptionWS.commitAudioBuffer(); // fallback flush
             const text = transcriptionWS.getFinalTranscript();
-            if (options.isSilent || !text) {
+            const isTimeout = options.stopReason === 'timeout';
+
+            if (isTimeout) {
+                // 10s with no speech: notify AI so it can decide what to do next
                 transcriptionWS.clearAccumulatedTranscript();
-                setSilentHint(true);
-                if (silentHintTimerRef.current) clearTimeout(silentHintTimerRef.current);
-                silentHintTimerRef.current = setTimeout(() => setSilentHint(false), 3000);
+                httpChat.submitTranscript('[no response]');
+            } else if (options.isSilent || !text) {
+                // Edge case: stop happened but no transcript was captured — drop silently
+                transcriptionWS.clearAccumulatedTranscript();
             } else {
                 httpChat.submitTranscript(text);
             }
@@ -128,12 +155,14 @@ const InteractivePanel = ({
     // Avatar 图片：TTS 实际播放时显示 speak，其余（idle、录音中、加载中）显示 listen
     const avatarSrc = (isAudioPlaying || httpChat.isAiSpeaking) ? '/speak.gif' : '/listen.gif';
 
-    const voiceButtonDisabled =
+    // Gate auto-recording: don't start while AI is speaking, loading, complete, or question audio is playing
+    const recordingBlocked =
         httpChat.isAiSpeaking ||
         httpChat.isLoading ||
         httpChat.questionComplete ||
         isAudioPlaying ||
         isProcessingTranscript;
+    const effectiveShouldRecord = shouldRecord && !recordingBlocked;
 
     return (
         <div className="interactive-panel">
@@ -168,23 +197,11 @@ const InteractivePanel = ({
                     )}
 
                     <img src={avatarSrc} alt="AI" className="avatar-image" />
-
-                    {/* Sound wave below avatar — only when recording */}
-                    {isUserRecording && (
-                        <div className="sound-wave">
-                            {[...Array(7)].map((_, i) => (
-                                <div key={i} className="wave-bar" />
-                            ))}
-                        </div>
-                    )}
                 </div>
 
                 <div className="voice-controls">
-                    {silentHint && (
-                        <p className="silent-hint">No speech detected. Please try again.</p>
-                    )}
                     <VoiceButton
-                        disabled={voiceButtonDisabled}
+                        shouldRecord={effectiveShouldRecord}
                         sharedStream={sharedStream}
                         onAudioChunk={(pcm16Data) => {
                             if (transcriptionWS.isConnected) {

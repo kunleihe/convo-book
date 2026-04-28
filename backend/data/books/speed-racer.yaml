@@ -32,7 +32,6 @@ pages:
         text: |
           Let's take a moment to chat together!
           Did you ever ride in a car going really fast? How did it feel?
-          Please talk to each other and share with me!
         custom_prompt: "As long as the child's response is relevant, accept whatever the response is, provide positive feedback, and set is_final: true in your response."
 
   - page_number: 3
@@ -85,7 +84,7 @@ pages:
       Elinor, scratching her chin. "I wonder how we can make our car go faster."
     questions:
       - id: q1
-        text: Now here's something for both of you to think about together. What can Elinor and her friends do to make their car go faster?
+        text: Now here's something for you to think about. What can Elinor and her friends do to make their car go faster?
 
   - page_number: 8
     image_uri: images/page-08.png
@@ -272,7 +271,7 @@ pages:
       but boxy things get slowed down." explained Mr. Rabbit.
     questions:
       - id: q1
-        text: Here's something for both of you to think about! Why do pointy things move fast?
+        text: Here's something for you to think about! Why do pointy things move fast?
       - id: q2
         text: Another question! Why do boxy things move slower than pointy things?
 
