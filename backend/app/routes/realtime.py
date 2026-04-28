@@ -5,7 +5,7 @@ import websockets
 import traceback
 
 from fastapi import WebSocket, WebSocketDisconnect, APIRouter
-from app.config import settings, SESSION_CONFIG
+from app.config import settings
 
 realtime_router = APIRouter()
 
@@ -115,11 +115,6 @@ async def send_text_safe(ws: WebSocket, message: str):
     except Exception as e:
         logging.error(f"Error sending message to client: {e}")
 
-
-@realtime_router.get("/session/config")
-async def get_session_config():
-    """Get the session configuration for OpenAI Realtime API."""
-    return SESSION_CONFIG
 
 def json_validator(data) -> bool:
     """Validate if the input data is JSON."""

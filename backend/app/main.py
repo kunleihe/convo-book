@@ -9,6 +9,8 @@ from app.routes.prompts import prompts_router
 from app.routes.auth import router as auth_router
 from app.routes.conversations import router as conversations_router
 from app.routes.uploads import router as uploads_router
+from app.routes.chat import chat_router
+from app.routes.tts import tts_router
 from app.config import settings, env_path
 
 @asynccontextmanager
@@ -43,6 +45,8 @@ app.include_router(prompts_router, prefix="/api")
 app.include_router(auth_router, prefix="/api/auth")
 app.include_router(conversations_router, prefix="/api", tags=["conversations"])
 app.include_router(uploads_router, prefix="/api", tags=["uploads"])
+app.include_router(chat_router, prefix="/api")
+app.include_router(tts_router, prefix="/api")
 
 # Root API endpoint
 @app.get("/")

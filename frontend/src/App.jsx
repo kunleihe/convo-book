@@ -3,8 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import NavigationBar from './components/Common/NavigationBar';
 import BookLibrary from './components/BookLibrary/BookLibrary';
 import BookReader from './components/BookReader/BookReader';
-import VoiceClient from './components/VoiceClient/VoiceClient';
 import DeviceCheck from './components/Common/DeviceCheck';
+import SetupGuide from './components/Common/SetupGuide';
 import ProtectedRoute from './components/Common/ProtectedRoute';
 import { useAuth } from './hooks/useAuth.jsx';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -57,18 +57,18 @@ function App() {
               }
             />
             <Route
-              path="/book/:bookId/page/:pageNumber"
+              path="/setup-guide"
               element={
                 <ProtectedRoute>
-                  <BookReader />
+                  <SetupGuide />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/voice"
+              path="/book/:bookId/page/:pageNumber"
               element={
                 <ProtectedRoute>
-                  <VoiceClient />
+                  <BookReader />
                 </ProtectedRoute>
               }
             />

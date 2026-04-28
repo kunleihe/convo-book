@@ -176,3 +176,8 @@ backend/app_dev.db
 
 *.zip
 *.csv
+
+# Local planning docs
+docs/plans/
+
+.worktrees/

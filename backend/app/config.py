@@ -1,6 +1,9 @@
+import functools
 import os
 import secrets
 from typing import List, Optional
+
+import yaml
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
@@ -106,35 +109,15 @@ class Settings(BaseSettings):
                 self.JWT_SECRET_KEY = secrets.token_urlsafe(64)
                 print("⚠️  Using auto-generated JWT secret key for development. Set JWT_SECRET_KEY in .env for persistence.")
 
-# --- Configuration Constants (non-sensitive) ---
-SESSION_CONFIG = {
-    "instructions": "You are a helpful voice assistant. Please respond with both text and audio. Always provide an audio response.",
-    "voice": "shimmer",  # Options: alloy, echo, fable, onyx, nova, shimmer
-    "input_audio_format": "pcm16",
-    "output_audio_format": "pcm16",
-    "modalities": ["text", "audio"],
-    "input_audio_transcription": {
-        "model": "whisper-1"
-    },
-    "turn_detection": None
-}
-
-TRANSCRIPTION_CONFIG = {
-    "input_audio_format": "pcm16",
-    "input_audio_transcription": {
-        "model": "gpt-4o-transcribe",
-        "prompt": "",
-        "language": "en"
-    },
-    "turn_detection": None,
-    "input_audio_noise_reduction": {
-        "type": "near_field"
-    },
-    "include": [
-        "item.input_audio_transcription.logprobs"
-    ]
-}
-
 # Instantiate settings
 settings = Settings()
+
+# --- Shared model settings loader ---
+_MODEL_SETTINGS_PATH = os.path.join(os.path.dirname(__file__), '..', 'data', 'model-settings-en.yaml')
+
+
+@functools.lru_cache(maxsize=1)
+def load_model_settings() -> dict:
+    with open(_MODEL_SETTINGS_PATH, 'r', encoding='utf-8') as f:
+        return yaml.safe_load(f)
 

@@ -1,13 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Container, Alert, Spinner, Button } from 'react-bootstrap';
+import { Container, Alert, Spinner, Button, Modal } from 'react-bootstrap';
 import Draggable from 'react-draggable';
 import { loadBookData, getPageData } from '../../utils/bookDataLoader';
 import { saveReadingProgress, clearReadingProgress } from '../../utils/storageUtils';
 import { apiRequest } from '../../utils/api';
+import { getCachedAudio, cacheAudio } from '../../utils/audioCache';
 import InteractivePanel from './InteractivePanel/InteractivePanel';
-import { fetchAudioWithRetry, getCachedAudio, cacheAudio } from '../../utils/audioCache';
+import { useNarration } from '../../hooks/useNarration';
 import './BookReader.css';
+
+const formatTime = (s) => {
+    if (!s || isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+};
 
 const BookReader = () => {
     const { bookId, pageNumber } = useParams();
@@ -19,6 +27,9 @@ const BookReader = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    // End-of-book modal
+    const [showEndModal, setShowEndModal] = useState(false);
+
     // Chat panel state
     const [showChatPanel, setShowChatPanel] = useState(false);
     const [currentQuestions, setCurrentQuestions] = useState([]);
@@ -26,10 +37,10 @@ const BookReader = () => {
     const [activeQuestion, setActiveQuestion] = useState(null);
     const [chatMessages, setChatMessages] = useState([]);
     const [isQuestionAudioPlaying, setIsQuestionAudioPlaying] = useState(false);
+    const [currentQuestionComplete, setCurrentQuestionComplete] = useState(false);
 
-    // Narration audio state
-    const [isNarrationPlaying, setIsNarrationPlaying] = useState(false);
-    const narrationAudioRef = useRef(null);
+    // Narration audio
+    const { isPlaying: isNarrationPlaying, currentTime: narrationTime, duration: narrationDuration, play: playNarration, pause: pauseNarration, seek: seekNarration } = useNarration(currentPage?.narrationAudioUrl);
 
     // Global Media Stream for Page Recording & Chat
     const [globalStream, setGlobalStream] = useState(null);
@@ -92,69 +103,38 @@ const BookReader = () => {
         return () => window.removeEventListener('keydown', handleKeyPress);
     }, [bookData, pageNumber]);
 
-    // Auto-play narration audio when page changes
+    // Reset question complete state when active question or page changes
     useEffect(() => {
-        if (currentPage && currentPage.narrationAudioUrl) {
-            playNarrationAudio(currentPage.narrationAudioUrl);
-        }
+        setCurrentQuestionComplete(false);
+    }, [activeQuestion?.id, pageNumber]);
 
-        // Cleanup: stop narration when leaving page
-        return () => {
-            if (narrationAudioRef.current) {
-                narrationAudioRef.current.pause();
-                narrationAudioRef.current = null;
-                setIsNarrationPlaying(false);
+    // 翻到含问题的页面时，提前在后台生成并缓存问题 TTS 音频
+    useEffect(() => {
+        if (!currentPage?.questions?.length) return;
+
+        const prefetchQuestionAudio = async () => {
+            for (const q of currentPage.questions) {
+                if (!q.questionText) continue;
+                const cached = await getCachedAudio(q.questionText);
+                if (cached) continue;
+                try {
+                    const response = await apiRequest('/api/tts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: q.questionText }),
+                    });
+                    if (response?.ok) {
+                        const blob = await response.blob();
+                        await cacheAudio(q.questionText, blob);
+                    }
+                } catch {
+                    // 静默失败，InteractivePanel 打开时会实时生成兜底
+                }
             }
         };
-    }, [currentPage?.pageNumber]);
 
-    const playNarrationAudio = async (audioUrl) => {
-        try {
-            // Stop any existing narration
-            if (narrationAudioRef.current) {
-                narrationAudioRef.current.pause();
-            }
-
-            // Check cache first
-            let audioBlob = await getCachedAudio(audioUrl);
-
-            if (!audioBlob) {
-                // Fetch from S3 via API
-                audioBlob = await fetchAudioWithRetry(audioUrl);
-                // Cache for future use
-                await cacheAudio(audioUrl, audioBlob);
-            }
-
-            const audioObjectUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioObjectUrl);
-            narrationAudioRef.current = audio;
-
-            audio.onplay = () => setIsNarrationPlaying(true);
-            audio.onended = () => {
-                URL.revokeObjectURL(audioObjectUrl);
-                setIsNarrationPlaying(false);
-                narrationAudioRef.current = null;
-
-                // Automatic flow after narration:
-                // If questions exist -> Open panel (via handleNextPage)
-                // If no questions -> Go to next page (via handleNextPage)
-                setTimeout(() => {
-                    handleNextPage();
-                }, 500);
-            };
-            audio.onerror = () => {
-                URL.revokeObjectURL(audioObjectUrl);
-                console.error('Narration audio playback failed:', audioUrl);
-                setIsNarrationPlaying(false);
-                narrationAudioRef.current = null;
-            };
-
-            await audio.play();
-        } catch (error) {
-            console.error('Failed to play narration audio:', error);
-            setIsNarrationPlaying(false);
-        }
-    };
+        prefetchQuestionAudio();
+    }, [currentPage]);
 
     // Preload next page image when chat panel opens
     useEffect(() => {
@@ -363,7 +343,7 @@ const BookReader = () => {
                 navigateToPage(currentPageNum + 1);
             } else {
                 clearReadingProgress(bookId);
-                navigate('/');
+                setShowEndModal(true);
             }
             return;
         }
@@ -373,16 +353,15 @@ const BookReader = () => {
             navigateToPage(currentPageNum + 1);
         } else {
             clearReadingProgress(bookId);
-            navigate('/');
+            setShowEndModal(true);
         }
     };
 
     const canPerformAction = () => {
-        // Disable action if question audio is playing
-        if (isQuestionAudioPlaying) {
-            return false;
-        }
-        // Always allow action - button handles navigation or chat panel
+        if (isNarrationPlaying) return false;
+        if (isQuestionAudioPlaying) return false;
+        // When chat panel is open, require the current question to be completed first
+        if (showChatPanel && !currentQuestionComplete) return false;
         return true;
     };
 
@@ -476,6 +455,38 @@ const BookReader = () => {
                     alt={`Page ${currentPage.pageNumber}`}
                     className="fullscreen-image"
                 />
+                {currentPage?.narrationAudioUrl && (
+                    <div className="narration-overlay">
+                        <button
+                            className="narration-play-btn"
+                            onClick={isNarrationPlaying ? pauseNarration : playNarration}
+                            aria-label={isNarrationPlaying ? 'Pause narration' : 'Play narration'}
+                        >
+                            {isNarrationPlaying ? (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <rect x="6" y="4" width="4" height="16" />
+                                    <rect x="14" y="4" width="4" height="16" />
+                                </svg>
+                            ) : (
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                    <polygon points="5,3 19,12 5,21" />
+                                </svg>
+                            )}
+                        </button>
+                        <input
+                            type="range"
+                            className="narration-progress"
+                            min={0}
+                            max={narrationDuration || 0}
+                            step={0.1}
+                            value={narrationTime}
+                            onChange={(e) => seekNarration(Number(e.target.value))}
+                        />
+                        <span className="narration-time">
+                            {formatTime(narrationTime)} / {formatTime(narrationDuration)}
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Layer 2: Floating Interactive Panel */}
@@ -492,16 +503,34 @@ const BookReader = () => {
                             questionIndex={currentQuestionIndex}
                             totalQuestions={currentQuestions.length}
                             sharedStream={globalStream}
-                            onNavigateNext={handleNextPage}
+                            pageText={currentPage?.storyText}
+                            onQuestionComplete={() => setCurrentQuestionComplete(true)}
                         />
                     </div>
                 </Draggable>
             )}
 
+            {/* End-of-book modal */}
+            <Modal show={showEndModal} centered backdrop="static" keyboard={false}>
+                <Modal.Body className="text-center py-5">
+                    <h4 className="mb-3">Great job finishing the book!</h4>
+                    <p className="text-muted fs-5">Please close this website and return to Zoom.</p>
+                </Modal.Body>
+            </Modal>
+
             {/* Layer 3: Bottom Control Bar */}
             <div className="bottom-control-bar">
                 <div className="left-controls">
                     <button className="btn-control btn-home" onClick={() => navigate('/')}>Home</button>
+                    <button
+                        className="btn-control btn-prev"
+                        disabled={!canGoPrevious()}
+                        onClick={handlePreviousPage}
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 12H5M12 19l-7-7 7-7" />
+                        </svg>
+                    </button>
                 </div>
 
                 <div className="center-controls">
@@ -509,6 +538,18 @@ const BookReader = () => {
                 </div>
 
                 <div className="right-controls">
+                    <button
+                        className="btn-control btn-next"
+                        disabled={!canPerformAction()}
+                        onClick={handleNextPage}
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 12h14M12 5l7 7-7 7" />
+                        </svg>
+                        {currentPage?.questions && currentPage.questions.length > 0 && !currentQuestionComplete && (
+                            <span className="question-badge">?</span>
+                        )}
+                    </button>
                 </div>
             </div>
         </div>
