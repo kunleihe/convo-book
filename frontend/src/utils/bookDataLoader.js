@@ -24,7 +24,7 @@ export const loadAllBooks = async () => {
             throw new Error('Failed to fetch books from API');
         }
         const data = await response.json();
-        return data.books;
+        return data.books.filter(book => !book.id.includes('ai-only'));
     } catch (error) {
         console.error('Error loading all books:', error);
         throw new Error('Failed to load book library');
