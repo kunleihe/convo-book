@@ -25,6 +25,14 @@ const InteractivePanel = ({
     const [shouldRecord, setShouldRecord] = useState(false);
 
     const prevIsAiSpeakingRef = useRef(false);
+    const prevIsUserRecordingRef = useRef(false);
+    const popAudioRef = useRef(null);
+    if (popAudioRef.current === null) {
+        const audio = new Audio('/pop.mp3');
+        audio.volume = 0.5;
+        audio.preload = 'auto';
+        popAudioRef.current = audio;
+    }
 
     // --- Hooks ---
     const httpChat = useHTTPChat();
@@ -62,6 +70,18 @@ const InteractivePanel = ({
         onAiSpeakingChange?.(httpChat.isAiSpeaking);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [httpChat.isAiSpeaking]);
+
+    // --- 录音开启瞬间播放 pop 提示音 ---
+    useEffect(() => {
+        if (isUserRecording && !prevIsUserRecordingRef.current) {
+            const audio = popAudioRef.current;
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(() => {});
+            }
+        }
+        prevIsUserRecordingRef.current = isUserRecording;
+    }, [isUserRecording]);
 
     // --- Auto-start recording on falling edge of AI speaking (round >= 2) ---
     useEffect(() => {
