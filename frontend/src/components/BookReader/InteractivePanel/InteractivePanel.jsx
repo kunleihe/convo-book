@@ -29,7 +29,7 @@ const InteractivePanel = ({
     const popAudioRef = useRef(null);
     if (popAudioRef.current === null) {
         const audio = new Audio('/pop.mp3');
-        audio.volume = 0.5;
+        audio.volume = 1;
         audio.preload = 'auto';
         popAudioRef.current = audio;
     }
@@ -40,6 +40,46 @@ const InteractivePanel = ({
     const transcriptionWS = useTranscriptionWebSocket(
         useCallback(() => {}, [])
     );
+
+    const playPopSound = useCallback(() => {
+        const audio = popAudioRef.current;
+        if (!audio) return;
+
+        audio.currentTime = 0;
+        audio.play().catch((error) => {
+            console.warn('[InteractivePanel] Pop sound playback failed:', error);
+        });
+    }, []);
+
+    // Warm up the cue on the first user gesture so deployed browsers are less likely
+    // to block the later auto-recording cue.
+    useEffect(() => {
+        const unlockPopSound = () => {
+            const audio = popAudioRef.current;
+            if (!audio) return;
+
+            audio.muted = true;
+            audio.currentTime = 0;
+            audio.play()
+                .then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.muted = false;
+                })
+                .catch((error) => {
+                    audio.muted = false;
+                    console.warn('[InteractivePanel] Pop sound warmup failed:', error);
+                });
+        };
+
+        window.addEventListener('pointerdown', unlockPopSound, { once: true });
+        window.addEventListener('keydown', unlockPopSound, { once: true });
+
+        return () => {
+            window.removeEventListener('pointerdown', unlockPopSound);
+            window.removeEventListener('keydown', unlockPopSound);
+        };
+    }, []);
 
     // --- Lifecycle: initialize on question/page change ---
     useEffect(() => {
@@ -74,14 +114,10 @@ const InteractivePanel = ({
     // --- 录音开启瞬间播放 pop 提示音 ---
     useEffect(() => {
         if (isUserRecording && !prevIsUserRecordingRef.current) {
-            const audio = popAudioRef.current;
-            if (audio) {
-                audio.currentTime = 0;
-                audio.play().catch(() => {});
-            }
+            playPopSound();
         }
         prevIsUserRecordingRef.current = isUserRecording;
-    }, [isUserRecording]);
+    }, [isUserRecording, playPopSound]);
 
     // --- Auto-start recording on falling edge of AI speaking (round >= 2) ---
     useEffect(() => {
