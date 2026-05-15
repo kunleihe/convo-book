@@ -4,6 +4,7 @@ import { useHTTPChat } from '../../../hooks/useHTTPChat';
 import { useTranscriptionWebSocket } from '../../../hooks/useTranscriptionWebSocket';
 import { getCachedAudio, cacheAudio } from '../../../utils/audioCache';
 import { apiRequest } from '../../../utils/api';
+import popSoundUrl from '../../../assets/pop.mp3';
 import './InteractivePanel.css';
 
 const InteractivePanel = ({
@@ -28,7 +29,7 @@ const InteractivePanel = ({
     const prevIsUserRecordingRef = useRef(false);
     const popAudioRef = useRef(null);
     if (popAudioRef.current === null) {
-        const audio = new Audio('/pop.mp3');
+        const audio = new Audio(popSoundUrl);
         audio.volume = 1;
         audio.preload = 'auto';
         popAudioRef.current = audio;
