@@ -15,7 +15,7 @@ export const useTranscriptionWebSocket = (onTranscriptionDelta = null) => {
         console.log('[Transcription] Received message:', message);
 
         switch (message.type) {
-            case 'transcription_session.updated':
+            case 'session.updated':
                 addDebugMessage('Transcription session updated successfully');
                 break;
 
@@ -77,22 +77,30 @@ export const useTranscriptionWebSocket = (onTranscriptionDelta = null) => {
     const configureTranscriptionSession = useCallback((ws) => {
         try {
             const sessionConfig = {
-                type: "transcription_session.update",
+                type: "session.update",
                 session: {
-                    input_audio_format: "pcm16",
-                    input_audio_transcription: {
-                        model: "gpt-4o-transcribe",
-                        prompt: "",
-                        language: "en"
-                    },
-                    turn_detection: {
-                        type: "server_vad",
-                        threshold: 0.3,
-                        prefix_padding_ms: 100,
-                        silence_duration_ms: 200
-                    },
-                    input_audio_noise_reduction: {
-                        type: "near_field"
+                    type: "transcription",
+                    audio: {
+                        input: {
+                            format: {
+                                type: "audio/pcm",
+                                rate: 24000
+                            },
+                            transcription: {
+                                model: "gpt-4o-transcribe",
+                                prompt: "",
+                                language: "en"
+                            },
+                            turn_detection: {
+                                type: "server_vad",
+                                threshold: 0.3,
+                                prefix_padding_ms: 100,
+                                silence_duration_ms: 200
+                            },
+                            noise_reduction: {
+                                type: "near_field"
+                            }
+                        }
                     },
                     include: [
                         "item.input_audio_transcription.logprobs"
