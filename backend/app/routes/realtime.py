@@ -22,7 +22,6 @@ extra_headers = (
     if settings.USE_AZURE_OPENAI
     else {
         "Authorization": f"Bearer {settings.API_KEY}",
-        "OpenAI-Beta": "realtime=v1",
     }
 )
 
