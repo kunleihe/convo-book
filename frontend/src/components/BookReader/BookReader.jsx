@@ -8,6 +8,7 @@ import { apiRequest } from '../../utils/api';
 import { getCachedAudio, cacheAudio } from '../../utils/audioCache';
 import InteractivePanel from './InteractivePanel/InteractivePanel';
 import { useNarration } from '../../hooks/useNarration';
+import { shouldShowNextGuide } from './nextButtonGuide';
 import './BookReader.css';
 
 const formatTime = (s) => {
@@ -365,40 +366,12 @@ const BookReader = () => {
         return true;
     };
 
-
-
-    const getButtonColorClass = () => {
-        const pageQuestions = currentPage?.questions || [];
-
-        if (showChatPanel) {
-            // More questions remaining
-            if (currentQuestionIndex < currentQuestions.length - 1) {
-                return 'question-btn'; // Green for "Next Question"
-            }
-            // Last question or no more questions
-            return ''; // Blue for "Next Page"
-        } else if (pageQuestions.length > 0) {
-            return 'question-btn'; // Green for "Discuss Page" 
-        } else {
-            return ''; // Blue for "Next Page"
-        }
-    };
-
-    const getButtonText = () => {
-        const currentPageNum = parseInt(pageNumber, 10);
-        const pageQuestions = currentPage?.questions || [];
-
-        if (showChatPanel) {
-            if (currentQuestionIndex < currentQuestions.length - 1) {
-                return "Next Question →";
-            }
-            return currentPageNum >= bookData.totalPages ? "Finish Book" : "Next Page →";
-        } else if (pageQuestions.length > 0) {
-            return pageQuestions.length === 1 ? "Discuss Page" : "Start Questions";
-        } else {
-            return currentPageNum >= bookData.totalPages ? "Finish Book" : "Next Page →";
-        }
-    };
+    const canUseNext = canPerformAction();
+    const showNextGuide = shouldShowNextGuide({
+        showChatPanel,
+        currentQuestionComplete,
+        canPerformAction: canUseNext,
+    });
 
     const canGoPrevious = () => {
         const currentPageNum = parseInt(pageNumber, 10);
@@ -539,8 +512,8 @@ const BookReader = () => {
 
                 <div className="right-controls">
                     <button
-                        className="btn-control btn-next"
-                        disabled={!canPerformAction()}
+                        className={`btn-control btn-next${showNextGuide ? ' btn-next-guided' : ''}`}
+                        disabled={!canUseNext}
                         onClick={handleNextPage}
                     >
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -56,15 +56,29 @@ export const useHTTPChat = () => {
             if (window.MediaSource) {
                 const mediaSource = new MediaSource();
                 const audio = new Audio();
-                audio.src = URL.createObjectURL(mediaSource);
-                audio.onended = () => setIsAiSpeaking(false);
-                audio.onerror = () => setIsAiSpeaking(false);
+                const audioObjectUrl = URL.createObjectURL(mediaSource);
+                audio.src = audioObjectUrl;
+                let finishPlayback;
+                let playbackFinished = false;
+                const playbackEnded = new Promise((resolve) => {
+                    finishPlayback = () => {
+                        if (playbackFinished) return;
+                        playbackFinished = true;
+                        URL.revokeObjectURL(audioObjectUrl);
+                        setIsAiSpeaking(false);
+                        resolve();
+                    };
+                    audio.onended = finishPlayback;
+                    audio.onerror = finishPlayback;
+                });
 
                 await new Promise((resolve) =>
                     mediaSource.addEventListener('sourceopen', resolve, { once: true })
                 );
 
-                audio.play();
+                audio.play().catch(() => {
+                    finishPlayback();
+                });
 
                 const sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg');
 
@@ -82,6 +96,11 @@ export const useHTTPChat = () => {
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) {
+                        if (sourceBuffer.updating) {
+                            await new Promise((r) =>
+                                sourceBuffer.addEventListener('updateend', r, { once: true })
+                            );
+                        }
                         mediaSource.endOfStream();
                         break;
                     }
@@ -92,6 +111,7 @@ export const useHTTPChat = () => {
                     }
                     sourceBuffer.appendBuffer(value);
                 }
+                await playbackEnded;
             } else {
                 // Fallback for browsers without MediaSource API
                 const ttsResponse = await fetch(`${API_BASE_URL}/api/tts`, {
@@ -110,8 +130,14 @@ export const useHTTPChat = () => {
                 const source = audioContext.createBufferSource();
                 source.buffer = audioBuffer;
                 source.connect(audioContext.destination);
-                source.onended = () => setIsAiSpeaking(false);
+                const playbackEnded = new Promise((resolve) => {
+                    source.onended = () => {
+                        setIsAiSpeaking(false);
+                        resolve();
+                    };
+                });
                 source.start();
+                await playbackEnded;
             }
         } catch (err) {
             console.error('[useHTTPChat] TTS error:', err);
@@ -183,11 +209,12 @@ export const useHTTPChat = () => {
                 questionIdRef.current,
             );
 
-            // Play TTS (non-blocking: don't await; isAiSpeaking tracks completion)
-            _playTTS(aiResponse);
+            const aiPlayback = _playTTS(aiResponse);
+            setIsLoading(false);
 
             // Advance round or mark complete
             if (is_final || roundNumberRef.current >= 2) {
+                await aiPlayback;
                 setQuestionComplete(true);
             } else {
                 roundNumberRef.current += 1;
