@@ -181,3 +181,12 @@ backend/app_dev.db
 docs/plans/
 
 .worktrees/
+
+# Transcription pipeline (contains child voice transcripts — DO NOT COMMIT)
+scripts/transcription/output/
+scripts/transcription/.cache/
+scripts/transcription/videos/
+scripts/transcription/audit.csv
+scripts/transcription/unknown_condition.txt
+scripts/transcription/batch.log
+scripts/transcription/*.pid

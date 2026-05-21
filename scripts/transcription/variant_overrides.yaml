@@ -1,0 +1,13 @@
+# Manual overrides for condition detection.
+# Use this when audit_legacy_variants.py auto-detection is wrong or marks a
+# username as `unknown`. Values here always win over auto-detection.
+#
+# Format:
+#   <username>: parent_ai | parent_only | ai_only
+#
+# Example:
+#   "7102": parent_ai
+#   "8033": parent_only
+#   "9544": ai_only
+
+# (empty by default; fill in after reviewing the audit CSV)
