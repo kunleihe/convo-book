@@ -415,7 +415,54 @@ def write_attempt_outputs(result: AttemptResult, out_dir: Path) -> None:
     log.info(f"Wrote {json_path.name} ({len(result.turns)} turns)")
 
 
-# ---------- Main ---------- #
+# ---------- Reusable per-page entry point ---------- #
+
+def run_page(
+    *, client, bucket: str, username: str, book_id: str, page: int,
+    condition: str, engine_name: str = "openai-full",
+    language: Optional[str] = None,
+    out_dir: Path = DEFAULT_OUT_DIR,
+    cache_dir_root: Path = DEFAULT_CACHE_DIR,
+) -> int:
+    """
+    Transcribe one page. Returns number of attempts processed (>=0). Skips silently
+    if there are no webm files. All exceptions per-attempt are caught and logged.
+    """
+    page_prefix = f"user-data/{username}/{book_id}/page-{page:02d}/"
+    cache_dir = cache_dir_root / username / book_id / f"page-{page:02d}"
+
+    media_keys = list_keys(client, bucket, page_prefix + "media/")
+    webm_keys = sorted([k for k in media_keys if k.endswith(".webm")],
+                       key=lambda k: Path(k).name)
+    if not webm_keys:
+        log.warning(f"No webm files at {page_prefix}media/")
+        return 0
+    log.info(f"Found {len(webm_keys)} webm file(s) for {username}/{book_id}/page-{page}")
+
+    ai_turns_meta = []
+    if condition == "parent_ai":
+        ai_turns_meta = load_ai_turns_from_conversations(client, bucket, page_prefix, cache_dir)
+        log.info(f"Found {len(ai_turns_meta)} AI conversation entries")
+
+    processed = 0
+    for video_idx, webm_key in enumerate(webm_keys, start=1):
+        try:
+            result = transcribe_attempt(
+                client=client, bucket=bucket,
+                username=username, book_id=book_id, page=page,
+                condition=condition, video_index=video_idx,
+                webm_key=webm_key, cache_dir=cache_dir,
+                engine_name=engine_name, language=language,
+                ai_turns_meta=ai_turns_meta,
+            )
+            write_attempt_outputs(result, out_dir)
+            processed += 1
+        except Exception as e:
+            log.exception(f"Failed attempt {video_idx} ({Path(webm_key).name}): {e}")
+    return processed
+
+
+# ---------- CLI Main ---------- #
 
 def main():
     parser = argparse.ArgumentParser()
@@ -441,37 +488,12 @@ def main():
         sys.exit(1)
 
     client = s3_client()
-    page_prefix = f"user-data/{args.username}/{args.book_id}/page-{args.page:02d}/"
-    cache_dir = args.cache_dir / args.username / args.book_id / f"page-{args.page:02d}"
-
-    # Find webm files
-    media_keys = list_keys(client, bucket, page_prefix + "media/")
-    webm_keys = sorted([k for k in media_keys if k.endswith(".webm")],
-                       key=lambda k: Path(k).name)
-    if not webm_keys:
-        log.error(f"No webm files at {page_prefix}media/")
-        sys.exit(1)
-    log.info(f"Found {len(webm_keys)} webm file(s) for {args.username}/{args.book_id}/page-{args.page}")
-
-    # Preload AI turns (only needed for parent_ai)
-    ai_turns_meta = []
-    if args.condition == "parent_ai":
-        ai_turns_meta = load_ai_turns_from_conversations(client, bucket, page_prefix, cache_dir)
-        log.info(f"Found {len(ai_turns_meta)} AI conversation entries")
-
-    for attempt_idx, webm_key in enumerate(webm_keys, start=1):
-        try:
-            result = transcribe_attempt(
-                client=client, bucket=bucket,
-                username=args.username, book_id=args.book_id, page=args.page,
-                condition=args.condition, video_index=attempt_idx,
-                webm_key=webm_key, cache_dir=cache_dir,
-                engine_name=args.engine, language=args.language,
-                ai_turns_meta=ai_turns_meta,
-            )
-            write_attempt_outputs(result, args.out_dir)
-        except Exception as e:
-            log.exception(f"Failed attempt {attempt_idx} ({Path(webm_key).name}): {e}")
+    run_page(
+        client=client, bucket=bucket,
+        username=args.username, book_id=args.book_id, page=args.page,
+        condition=args.condition, engine_name=args.engine,
+        language=args.language, out_dir=args.out_dir, cache_dir_root=args.cache_dir,
+    )
 
 
 if __name__ == "__main__":

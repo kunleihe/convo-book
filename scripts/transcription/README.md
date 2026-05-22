@@ -125,28 +125,53 @@ python batch.py --skip-done --engine openai-full
 
 #### 全量跑：挂后台 + 防睡眠（推荐）
 
+`batch.py` 自己处理日志写文件 + 屏蔽 tty 信号，**不需要 `nohup` / `disown` / shell 重定向**：
+
 ```bash
 cd scripts/transcription
-source .venv/bin/activate
-caffeinate -i python batch.py --skip-done > batch.log 2>&1 &
-tail -f batch.log
+caffeinate -i .venv/bin/python batch.py --skip-done &
 ```
 
-- `caffeinate -i` 防止系统 idle sleep，**屏幕可以关、电脑可以锁屏**，进程继续跑
-- `> batch.log 2>&1 &` 后台运行，输出存到 `batch.log`
-- `Ctrl+C` 退出 `tail`（不影响后台进程）
+- `.venv/bin/python` 用绝对路径，避免激活错 venv 导致 import 失败
+- `caffeinate -i` 防止系统 idle sleep（屏幕可以关、电脑可以锁屏）
+- 后台运行（`&`），日志自动写入 `batch.log`
+- 关 terminal **会** SIGHUP 子进程；如果你要关窗口跑，加 `nohup` 前缀
+
+最稳妥的关 terminal 也能继续跑的版本：
+
+```bash
+nohup caffeinate -i .venv/bin/python batch.py --skip-done &
+```
+
+**为什么不用 disown 了**：旧版需要 `disown` 是因为 pyannote 内部偶尔会写 `/dev/tty`，zsh 默认会因此挂起后台进程。新版 batch.py 在启动时 `signal.signal(SIGTTOU, SIG_IGN)`，从根本上屏蔽了这个挂起源。
 
 **注意事项**：
 - 电脑要**保持开机 + 接电源 + 联 Wi-Fi**
 - 合盖默认会睡眠（脚本停），如需合盖跑请接外接显示器进 Clamshell mode
-- 远程关机/重启会丢进度，但 `--skip-done` 重启后能接上
+- 关机/重启会丢进度，但 `--skip-done` 重启后能接上
 
 **管理后台任务**：
 ```bash
-jobs                  # 看任务列表（显示 [1] Running ...）
-kill %1               # 停掉后台任务
-ps aux | grep batch.py # 找进程 PID 的另一种方式
+# 看实时滚屏
+tail -f batch.log
+
+# 看最近 N 行
+tail -50 batch.log
+
+# 确认进程还在跑（看 PID）
+ps aux | grep batch.py | grep -v grep
+
+# 停掉后台任务
+kill <PID>
+
+# 看处理了多少用户 / page
+ls output/ | wc -l
+find output/ -name "*.csv" | wc -l
 ```
+
+#### 关键性能改进（v2）
+
+新版 `batch.py` **在单进程内跑所有 page**，pyannote 模型只加载一次，对比旧版每个 page 都 spawn 子进程要省 1.5-2 小时（576 webm × 10-15s 模型加载）。
 
 ## 输出结构
 
