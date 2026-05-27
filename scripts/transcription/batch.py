@@ -53,6 +53,12 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 DEFAULT_ENV = REPO_ROOT / "backend" / "app" / ".env"
 DEFAULT_OUT = SCRIPT_DIR / "output"
 DEFAULT_LOG = SCRIPT_DIR / "batch.log"
+DEFAULT_REVIEW_DIR = Path(
+    "/Users/kunleihe/Library/CloudStorage/"
+    "GoogleDrive-kunleih@uci.edu/Shared drives/"
+    "Bilingual-Ebook-Study/convo-book/reading-transcript"
+)
+REVIEW_COLUMNS = ["t_start", "t_end", "speaker", "text"]
 
 
 def _setup_logging(log_path: Path, level: int = logging.INFO) -> None:
@@ -144,6 +150,24 @@ def filter_set(csv_arg: Optional[str]) -> Optional[set[str]]:
     return {s.strip() for s in csv_arg.split(",") if s.strip()}
 
 
+def _write_review_copies(out_dir: Path, username: str, page: int, review_dir: Path) -> None:
+    """Write slim 4-column copies to review_dir; skip files that already exist."""
+    log = logging.getLogger("batch")
+    src_files = list((out_dir / username).glob(f"*_page-{page:02d}_video-*.xlsx"))
+    for src in src_files:
+        dest = review_dir / username / src.name
+        if dest.exists():
+            log.info(f"REVIEW-SKIP {dest.name} (already exists)")
+            continue
+        try:
+            df = pd.read_excel(src, engine="openpyxl")
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            df[REVIEW_COLUMNS].to_excel(dest, index=False, engine="openpyxl")
+            log.info(f"REVIEW-COPY → {dest.name}")
+        except Exception as e:
+            log.warning(f"REVIEW-COPY failed for {src.name}: {e}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--audit", type=Path, default=SCRIPT_DIR / "audit.csv")
@@ -161,6 +185,10 @@ def main():
     parser.add_argument("--skip-done", action="store_true",
                         help="Skip pages that already have output files")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--review-dir", type=Path, default=DEFAULT_REVIEW_DIR,
+                        help="Target dir for slim 4-col review copies")
+    parser.add_argument("--backfill-review", action="store_true",
+                        help="Copy slim review xlsx from existing output/ without re-transcribing")
     args = parser.parse_args()
 
     _setup_logging(args.log_file)
@@ -176,6 +204,26 @@ def main():
     if not args.audit.exists():
         log.error(f"audit CSV not found: {args.audit}. Run audit_legacy_variants.py first.")
         sys.exit(1)
+
+    if args.backfill_review:
+        log.info(f"Backfilling review copies from {args.out_dir} → {args.review_dir}")
+        for user_dir in sorted(args.out_dir.iterdir()):
+            if not user_dir.is_dir():
+                continue
+            for src in sorted(user_dir.glob("*.xlsx")):
+                dest = args.review_dir / user_dir.name / src.name
+                if dest.exists():
+                    log.info(f"REVIEW-SKIP {src.name} (already exists)")
+                    continue
+                try:
+                    df = pd.read_excel(src, engine="openpyxl")
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    df[REVIEW_COLUMNS].to_excel(dest, index=False, engine="openpyxl")
+                    log.info(f"REVIEW-COPY → {user_dir.name}/{src.name}")
+                except Exception as e:
+                    log.warning(f"REVIEW-COPY failed for {src.name}: {e}")
+        log.info("Backfill done.")
+        return
 
     # Import both modules after logging is set up so they inherit config
     import transcribe_no_ai_events
@@ -233,6 +281,7 @@ def main():
                     language=args.language,
                     out_dir=args.out_dir, cache_dir_root=args.cache_dir,
                 )
+                _write_review_copies(args.out_dir, username, page, args.review_dir)
             except Exception as e:
                 log.exception(f"FAILED {username} page-{page}: {e}")
                 total_pages_failed += 1
