@@ -18,6 +18,9 @@ const InteractivePanel = ({
     pageText = '',
     onQuestionComplete,
     onAiSpeakingChange,
+    audioCtx = null,
+    audioDestination = null,
+    onLogEvent = null,
 }) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(!!question?.questionText);
     // Gate between recording-stop and submit completing to prevent double presses
@@ -89,7 +92,10 @@ const InteractivePanel = ({
             setIsUserRecording(false);
             setShouldRecord(false);
             prevIsAiSpeakingRef.current = false;
-            httpChat.initialize(bookId, pageNumber, question, pageText);
+            httpChat.initialize(bookId, pageNumber, question, pageText, audioCtx, audioDestination, {
+                onTtsStart: ({ text }) => onLogEvent?.('ai_tts_start', { text, question_id: question.id }),
+                onTtsEnd: () => onLogEvent?.('ai_tts_end', {}),
+            });
             transcriptionWS.connect();
         }
         return () => {
@@ -148,10 +154,10 @@ const InteractivePanel = ({
     };
 
     const playQuestionTTSAsync = async (questionText) => {
+        onLogEvent?.('ai_tts_start', { text: questionText, question_id: question?.id });
         try {
             let audioBlob = await getCachedAudio(questionText);
             if (!audioBlob) {
-                // 缓存未命中时实时生成（兜底）
                 const response = await apiRequest('/api/tts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -167,15 +173,26 @@ const InteractivePanel = ({
 
             const audioObjectUrl = URL.createObjectURL(audioBlob);
             const audio = new Audio(audioObjectUrl);
-            audio.onended = () => {
+
+            if (audioCtx && audioDestination) {
+                await audioCtx.resume();
+                const elSource = audioCtx.createMediaElementSource(audio);
+                elSource.connect(audioDestination);
+                elSource.connect(audioCtx.destination);
+            }
+
+            const finish = () => {
                 URL.revokeObjectURL(audioObjectUrl);
                 updateAudioState(false);
-                setShouldRecord(true); // auto-record once question audio finishes
+                onLogEvent?.('ai_tts_end', {});
+                setShouldRecord(true);
             };
-            audio.onerror = () => { URL.revokeObjectURL(audioObjectUrl); updateAudioState(false); };
+            audio.onended = finish;
+            audio.onerror = finish;
             await audio.play();
         } catch {
             updateAudioState(false);
+            onLogEvent?.('ai_tts_end', {});
         }
     };
 
@@ -186,14 +203,13 @@ const InteractivePanel = ({
         try {
             transcriptionWS.commitAudioBuffer(); // fallback flush
             const text = transcriptionWS.getFinalTranscript();
+            onLogEvent?.('user_record_stop', { transcript: text || '', question_id: question?.id });
             const isTimeout = options.stopReason === 'timeout';
 
             if (isTimeout) {
-                // 10s with no speech: notify AI so it can decide what to do next
                 transcriptionWS.clearAccumulatedTranscript();
                 httpChat.submitTranscript('[no response]');
             } else if (options.isSilent || !text) {
-                // Edge case: stop happened but no transcript was captured — drop silently
                 transcriptionWS.clearAccumulatedTranscript();
             } else {
                 httpChat.submitTranscript(text);
@@ -201,7 +217,7 @@ const InteractivePanel = ({
         } finally {
             setIsProcessingTranscript(false);
         }
-    }, [transcriptionWS, httpChat]);
+    }, [transcriptionWS, httpChat, onLogEvent, question?.id]);
 
     // 气泡文字：优先显示最后一条 AI 消息，否则显示问题文字
     const lastAiMessage = httpChat.conversationMessages
@@ -265,7 +281,10 @@ const InteractivePanel = ({
                                 transcriptionWS.sendAudioData(pcm16Data);
                             }
                         }}
-                        onRecordingStart={() => setIsUserRecording(true)}
+                        onRecordingStart={() => {
+                            setIsUserRecording(true);
+                            onLogEvent?.('user_record_start', { question_id: question?.id });
+                        }}
                         onRecordingComplete={handleRecordingComplete}
                     />
                 </div>

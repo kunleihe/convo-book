@@ -8,6 +8,7 @@ import { apiRequest } from '../../utils/api';
 import { getCachedAudio, cacheAudio } from '../../utils/audioCache';
 import InteractivePanel from './InteractivePanel/InteractivePanel';
 import { useNarration } from '../../hooks/useNarration';
+import { useSessionEventLog } from '../../hooks/useSessionEventLog';
 import './BookReader.css';
 
 const formatTime = (s) => {
@@ -45,6 +46,12 @@ const BookReader = () => {
 
     // Global audio stream shared with VoiceButton
     const [globalStream, setGlobalStream] = useState(null);
+    const mediaRecorderRef = useRef(null);
+    const recordedChunksRef = useRef([]);
+    const audioCtxRef = useRef(null);
+    const audioDestRef = useRef(null);
+
+    const { logEvent, flushEvents } = useSessionEventLog();
 
     useEffect(() => {
         loadCurrentBook();
@@ -54,6 +61,11 @@ const BookReader = () => {
             if (globalStream) {
                 console.log('[BookReader] Stopping global stream tracks');
                 globalStream.getTracks().forEach(track => track.stop());
+            }
+            if (audioCtxRef.current) {
+                audioCtxRef.current.close();
+                audioCtxRef.current = null;
+                audioDestRef.current = null;
             }
         };
     }, [bookId]);
@@ -184,9 +196,95 @@ const BookReader = () => {
                     channelCount: 1
                 }
             });
-            setGlobalStream(stream);
+
+            const audioCtx = new AudioContext({ sampleRate: 24000 });
+            const destination = audioCtx.createMediaStreamDestination();
+            const micSource = audioCtx.createMediaStreamSource(stream);
+            micSource.connect(destination);
+            audioCtxRef.current = audioCtx;
+            audioDestRef.current = destination;
+
+            setGlobalStream(destination.stream);
         } catch (err) {
             console.error('[BookReader] Failed to initialize audio stream:', err);
+        }
+    };
+
+    // Start/stop page recording on page change
+    useEffect(() => {
+        if (!globalStream || !bookId || !pageNumber) return;
+
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+        }
+
+        startPageRecording(bookId, pageNumber);
+
+        return () => {
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+                mediaRecorderRef.current.stop();
+            }
+        };
+    }, [bookId, pageNumber, globalStream]);
+
+    const startPageRecording = (currentBookId, currentPageNum) => {
+        try {
+            recordedChunksRef.current = [];
+            const options = { mimeType: 'audio/webm;codecs=opus' };
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options.mimeType = 'audio/webm';
+            }
+
+            const recorder = new MediaRecorder(globalStream, options);
+            recorder.ondataavailable = (event) => {
+                if (event.data && event.data.size > 0) {
+                    recordedChunksRef.current.push(event.data);
+                }
+            };
+            recorder.onstop = async () => {
+                const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+                const username = localStorage.getItem('username') || 'guest';
+                if (blob.size > 0) {
+                    uploadPageRecording(blob, currentBookId, currentPageNum);
+                }
+                flushEvents(username, currentBookId, currentPageNum);
+            };
+
+            recorder.start();
+            mediaRecorderRef.current = recorder;
+            logEvent('recording_start');
+            console.log(`[BookReader] Started audio recording for page ${currentPageNum}`);
+        } catch (e) {
+            console.error('[BookReader] Failed to start MediaRecorder:', e);
+        }
+    };
+
+    const uploadPageRecording = async (blob, currentBookId, currentPageNum) => {
+        try {
+            const username = localStorage.getItem('username') || 'guest';
+            const stage = 'reading';
+            const presignRes = await apiRequest('/api/upload-url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username,
+                    book_id: currentBookId,
+                    page_number: currentPageNum,
+                    stage,
+                    filename: 'reading.webm',
+                    content_type: 'audio/webm',
+                }),
+            });
+            if (!presignRes?.ok) return;
+            const { upload_url } = await presignRes.json();
+            await fetch(upload_url, {
+                method: 'PUT',
+                body: blob,
+                headers: { 'Content-Type': 'audio/webm' },
+            });
+            console.log(`[BookReader] Uploaded audio recording for page ${currentPageNum}`);
+        } catch (err) {
+            console.error('[BookReader] Error uploading page recording:', err);
         }
     };
 
@@ -433,6 +531,9 @@ const BookReader = () => {
                             pageText={currentPage?.storyText}
                             onQuestionComplete={() => setCurrentQuestionComplete(true)}
                             onAiSpeakingChange={setIsAiSpeaking}
+                            audioCtx={audioCtxRef.current}
+                            audioDestination={audioDestRef.current}
+                            onLogEvent={logEvent}
                         />
                     </div>
                 </Draggable>
