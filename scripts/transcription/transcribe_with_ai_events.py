@@ -421,12 +421,13 @@ def write_attempt_outputs(result: AttemptResult, out_dir: Path) -> None:
             "needs_review": result.needs_review,
             "realtime_transcript": t.realtime_transcript or "",
             "ai_orphan_warning": t.ai_orphan_warning,
+            "ai_timing_approximate": False,
         })
     columns = [
         "username", "condition", "page_number", "video_index", "webm_file",
         "webm_duration_sec", "turn_index", "t_start", "t_end", "speaker",
         "text", "source", "f0_median", "needs_review", "realtime_transcript",
-        "ai_orphan_warning",
+        "ai_orphan_warning", "ai_timing_approximate",
     ]
     pd.DataFrame(rows, columns=columns).to_excel(xlsx_path, index=False)
     log.info(f"Wrote {xlsx_path.name} ({len(result.turns)} turns)")
