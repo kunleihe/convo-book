@@ -117,6 +117,25 @@ def local_path_for(out_dir: Path, username: str, page: int, s3_key: str) -> Path
     return out_dir / username / f"page-{page:02d}" / filename
 
 
+def _update_video_tracker(out_dir: Path, new_usernames: set[str]) -> None:
+    if not new_usernames:
+        return
+    tracker_path = out_dir / "video_tracker.xlsx"
+    if tracker_path.exists():
+        existing = pd.read_excel(tracker_path, dtype=str)
+    else:
+        existing = pd.DataFrame(columns=["username", "coder"])
+    existing_usernames = set(existing["username"].dropna())
+    to_add = sorted(new_usernames - existing_usernames)
+    if not to_add:
+        log.info("video_tracker.xlsx: no new usernames to add")
+        return
+    new_rows = pd.DataFrame({"username": to_add, "coder": ""})
+    updated = pd.concat([existing, new_rows], ignore_index=True)
+    updated.to_excel(tracker_path, index=False)
+    log.info(f"video_tracker.xlsx: added {len(to_add)} username(s) → {tracker_path}")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--audit", type=Path, default=DEFAULT_AUDIT,
@@ -198,9 +217,12 @@ def main():
         return
 
     counter_lock = threading.Lock()
-    counter = {"done": 0, "fail": 0}
+    counter = {"done": 0, "fail": 0, "usernames": set()}
     total = len(todo)
     manifest_fh = manifest_path.open("a")
+
+    # build a key→username map for tracking
+    key_to_username = {key: Path(key).parts[1] for key, _, _ in todo}
 
     def _download_one(item):
         key, local, _ = item
@@ -214,6 +236,7 @@ def main():
         with counter_lock:
             if ok:
                 counter["done"] += 1
+                counter["usernames"].add(key_to_username[key])
                 manifest_fh.write(key + "\n")
                 manifest_fh.flush()
             else:
@@ -229,6 +252,8 @@ def main():
     manifest_fh.close()
 
     log.info(f"Done. ok={counter['done']}  fail={counter['fail']}  out_dir={args.out_dir}")
+
+    _update_video_tracker(args.out_dir, counter["usernames"])
 
 
 if __name__ == "__main__":
