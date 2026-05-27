@@ -29,7 +29,7 @@ import os
 import re
 import subprocess
 import sys
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -53,9 +53,10 @@ DEFAULT_CACHE_DIR = SCRIPT_DIR / ".cache"
 WEBM_NAME_RE = re.compile(
     r"^(?P<ts>\d{8}-\d{6})-(?P<stage>[^-]+)-(?P<uid>[A-Fa-f0-9]+)\.webm$"
 )
-SEG_OVERLAP_SEC = 1.5
+SEG_OVERLAP_SEC = 0.3       # padding around each segment when slicing for transcription
 MIN_SEG_DURATION = 0.4
-OPENAI_CONCURRENCY = 10   # parallel API calls per webm
+MERGE_GAP_SEC = 1.0          # merge adjacent same-speaker segments with gap <= this
+OPENAI_CONCURRENCY = 10      # parallel API calls per webm
 
 
 @dataclass
@@ -198,6 +199,28 @@ def get_diarizer():
     return _DIARIZER
 
 
+def merge_adjacent_segments(
+    clusters: dict[str, list[tuple[float, float]]],
+    max_gap: float = MERGE_GAP_SEC,
+) -> dict[str, list[tuple[float, float]]]:
+    """
+    Merge same-speaker segments separated by <= max_gap seconds into one segment.
+    Reduces duplicate transcriptions from pyannote splitting a single utterance
+    at natural pauses (breath, hesitation).
+    """
+    merged: dict[str, list[tuple[float, float]]] = {}
+    for speaker, segs in clusters.items():
+        sorted_segs = sorted(segs)
+        out: list[tuple[float, float]] = []
+        for t0, t1 in sorted_segs:
+            if out and t0 - out[-1][1] <= max_gap:
+                out[-1] = (out[-1][0], t1)   # extend previous segment
+            else:
+                out.append((t0, t1))
+        merged[speaker] = out
+    return merged
+
+
 def diarize(wav: Path, num_speakers: int) -> dict[str, list[tuple[float, float]]]:
     """Return {speaker_label: [(t_start, t_end), ...]}."""
     pipeline = get_diarizer()
@@ -275,6 +298,13 @@ def transcribe_attempt(
     num_speakers = 1 if condition == "ai_only" else 2
     log.info(f"[video {video_index}] Diarizing (num_speakers={num_speakers}) ...")
     clusters = diarize(wav_local, num_speakers=num_speakers)
+    # Merge adjacent same-speaker segments (suppresses duplicate transcription
+    # when pyannote splits a single utterance at natural pauses).
+    pre_counts = {s: len(v) for s, v in clusters.items()}
+    clusters = merge_adjacent_segments(clusters)
+    post_counts = {s: len(v) for s, v in clusters.items()}
+    if pre_counts != post_counts:
+        log.info(f"[video {video_index}] Merged segments: {pre_counts} → {post_counts}")
     if not clusters:
         log.warning(f"[video {video_index}] No speech detected in {webm_filename}")
         return AttemptResult(
@@ -375,20 +405,14 @@ def transcribe_attempt(
 # ---------- Output writers ---------- #
 
 def write_attempt_outputs(result: AttemptResult, out_dir: Path) -> None:
-    page_dir = out_dir / result.username / f"page-{result.page_number:02d}"
-    page_dir.mkdir(parents=True, exist_ok=True)
+    user_dir = out_dir / result.username
+    user_dir.mkdir(parents=True, exist_ok=True)
     stem = Path(result.webm_file).stem
     base = (
         f"{result.username}_{result.condition}_page-{result.page_number:02d}"
         f"_video-{result.video_index}__{stem}"
     )
-    json_path = page_dir / f"{base}.json"
-    csv_path = page_dir / f"{base}.csv"
-
-    json_path.write_text(json.dumps({
-        **{k: v for k, v in asdict(result).items() if k != "turns"},
-        "turns": [asdict(t) for t in result.turns],
-    }, indent=2, ensure_ascii=False))
+    xlsx_path = user_dir / f"{base}.xlsx"
 
     rows = []
     for idx, t in enumerate(result.turns):
@@ -411,8 +435,8 @@ def write_attempt_outputs(result: AttemptResult, out_dir: Path) -> None:
             "ai_orphan_warning": t.ai_orphan_warning,
             "ai_timing_approximate": t.ai_timing_approximate,
         })
-    pd.DataFrame(rows).to_csv(csv_path, index=False, encoding="utf-8-sig")
-    log.info(f"Wrote {json_path.name} ({len(result.turns)} turns)")
+    pd.DataFrame(rows).to_excel(xlsx_path, index=False)
+    log.info(f"Wrote {xlsx_path.name} ({len(result.turns)} turns)")
 
 
 # ---------- Reusable per-page entry point ---------- #

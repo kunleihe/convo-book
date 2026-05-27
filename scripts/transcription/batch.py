@@ -6,15 +6,30 @@ Designed to:
 - Catch any exception from a page without crashing the whole batch
 - Run safely in the background (writes its own log file, ignores SIGTTOU)
 
-Usage:
+------------------------------------------------------------------------------
+Setup (one time, from scripts/transcription/):
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+
+Activate venv each new shell (from scripts/transcription/):
+    source .venv/bin/activate
+    # prompt should show (.venv)
+    # confirm:  which python   →   .../scripts/transcription/.venv/bin/python
+
+Or skip activation by using the absolute path: .venv/bin/python instead of python
+------------------------------------------------------------------------------
+
+Usage (after activating venv):
     python batch.py --skip-done
     python batch.py --usernames 7102,8033 --pages 2,3
     python batch.py --conditions parent_ai
     python batch.py --dry-run
 
-Background-friendly launch:
-    nohup setsid .venv/bin/python batch.py --skip-done &
-    # logs go to batch.log automatically
+Background launch (logs auto-written to batch.log, no shell redirect needed):
+    caffeinate -i .venv/bin/python batch.py --skip-done &
+    # or, to survive closing the terminal:
+    nohup caffeinate -i .venv/bin/python batch.py --skip-done &
 """
 
 from __future__ import annotations
