@@ -38,7 +38,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
 DEFAULT_ENV = REPO_ROOT / "backend" / "app" / ".env"
 DEFAULT_AUDIT = SCRIPT_DIR / "audit.csv"
-DEFAULT_OUT = SCRIPT_DIR / "videos"
+DEFAULT_OUT = Path("/Users/kunleihe/Library/CloudStorage/GoogleDrive-kunleih@uci.edu/Shared drives/Bilingual-Ebook-Study/convo-book/reading-video")
 
 USERNAME_RE = re.compile(r"^\d{4}$")
 PAGE_RE = re.compile(r"page-(\d+)")
@@ -59,12 +59,12 @@ def s3_client():
     )
 
 
-def list_keys(client, bucket: str, prefix: str) -> list[str]:
+def list_keys(client, bucket: str, prefix: str) -> list[tuple[str, int]]:
     paginator = client.get_paginator("list_objects_v2")
     keys = []
     for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
         for obj in page.get("Contents", []) or []:
-            keys.append(obj["Key"])
+            keys.append((obj["Key"], obj["Size"]))
     return keys
 
 
@@ -99,7 +99,7 @@ def collect_targets(
         # List all media/ keys under this session
         prefix = f"user-data/{username}/{book_id}/"
         keys = list_keys(client, bucket, prefix)
-        for k in keys:
+        for k, size in keys:
             if not k.endswith(".webm"):
                 continue
             m = PAGE_RE.search(k)
@@ -108,7 +108,7 @@ def collect_targets(
             page = int(m.group(1))
             if page_filter and page not in page_filter:
                 continue
-            targets.append((username, book_id, page, k))
+            targets.append((username, book_id, page, k, size))
     return targets
 
 
@@ -137,6 +137,8 @@ def main():
                         help="S3 bucket (default: $S3_BUCKET_NAME)")
     parser.add_argument("--env", type=Path, default=DEFAULT_ENV)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--manifest", type=Path, default=None,
+                        help="Path to manifest file tracking downloaded keys (default: <out-dir>/downloaded.txt)")
     args = parser.parse_args()
 
     load_env(args.env)
@@ -156,6 +158,13 @@ def main():
     cond_filter = filter_set(args.conditions)
     page_filter = ({int(p) for p in args.pages.split(",")} if args.pages else None)
 
+    manifest_path = args.manifest or (args.out_dir / "downloaded.txt")
+    args.out_dir.mkdir(parents=True, exist_ok=True)
+    already_downloaded: set[str] = set()
+    if manifest_path.exists():
+        already_downloaded = {line.strip() for line in manifest_path.read_text().splitlines() if line.strip()}
+    log.info(f"Manifest: {manifest_path} ({len(already_downloaded)} entries)")
+
     log.info("Listing S3 keys ...")
     targets = collect_targets(
         client, bucket, audit_df,
@@ -163,21 +172,25 @@ def main():
     )
     log.info(f"Found {len(targets)} webm file(s) matching filters")
 
-    # Plan downloads (skip already-existing)
+    # Plan downloads (skip if in manifest OR already present on disk)
     todo = []
-    for username, book_id, page, key in targets:
+    for username, book_id, page, key, size in targets:
+        if key in already_downloaded:
+            continue
         local = local_path_for(args.out_dir, username, page, key)
         if local.exists() and local.stat().st_size > 0:
             continue
-        todo.append((key, local))
+        todo.append((key, local, size))
     skipped = len(targets) - len(todo)
     log.info(f"To download: {len(todo)}  Already present: {skipped}")
 
     if args.dry_run:
-        for key, local in todo[:20]:
-            log.info(f"DRY-RUN  s3://{bucket}/{key}  →  {local}")
+        total_bytes = sum(size for _, _, size in todo)
+        for key, local, size in todo[:20]:
+            log.info(f"DRY-RUN  {size/1e6:6.1f} MB  s3://{bucket}/{key}  →  {local}")
         if len(todo) > 20:
             log.info(f"... and {len(todo) - 20} more")
+        log.info(f"Total: {len(todo)} file(s)  {total_bytes/1e9:.2f} GB ({total_bytes/1e6:.0f} MB)")
         return
 
     if not todo:
@@ -187,9 +200,10 @@ def main():
     counter_lock = threading.Lock()
     counter = {"done": 0, "fail": 0}
     total = len(todo)
+    manifest_fh = manifest_path.open("a")
 
     def _download_one(item):
-        key, local = item
+        key, local, _ = item
         local.parent.mkdir(parents=True, exist_ok=True)
         try:
             client.download_file(bucket, key, str(local))
@@ -200,6 +214,8 @@ def main():
         with counter_lock:
             if ok:
                 counter["done"] += 1
+                manifest_fh.write(key + "\n")
+                manifest_fh.flush()
             else:
                 counter["fail"] += 1
             done = counter["done"] + counter["fail"]
@@ -210,6 +226,7 @@ def main():
     log.info(f"Downloading with {args.parallel} parallel workers ...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.parallel) as pool:
         list(pool.map(_download_one, todo))
+    manifest_fh.close()
 
     log.info(f"Done. ok={counter['done']}  fail={counter['fail']}  out_dir={args.out_dir}")
 
