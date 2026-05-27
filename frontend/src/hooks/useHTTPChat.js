@@ -20,6 +20,10 @@ export const useHTTPChat = () => {
     const questionTextRef = useRef('');
     const customPromptRef = useRef(null);
     const pageTextRef = useRef('');
+    const audioCtxRef = useRef(null);
+    const audioDestRef = useRef(null);
+    const onTtsStartRef = useRef(null);
+    const onTtsEndRef = useRef(null);
 
     /**
      * Initialize for a new question. Must be called when question or page changes.
@@ -27,14 +31,21 @@ export const useHTTPChat = () => {
      * @param {number} pageNumber
      * @param {{id: string, questionText: string, customPrompt?: string}} question
      * @param {string} pageText
+     * @param {AudioContext|null} audioCtx  — shared AudioContext for mixed recording
+     * @param {MediaStreamAudioDestinationNode|null} audioDestination
+     * @param {{ onTtsStart?: Function, onTtsEnd?: Function }} callbacks
      */
-    const initialize = useCallback((bookId, pageNumber, question, pageText) => {
+    const initialize = useCallback((bookId, pageNumber, question, pageText, audioCtx = null, audioDestination = null, { onTtsStart, onTtsEnd } = {}) => {
         bookIdRef.current = bookId;
         pageNumberRef.current = pageNumber;
         questionIdRef.current = question.id;
         questionTextRef.current = question.questionText;
         customPromptRef.current = question.customPrompt ?? null;
         pageTextRef.current = pageText ?? '';
+        audioCtxRef.current = audioCtx;
+        audioDestRef.current = audioDestination;
+        onTtsStartRef.current = onTtsStart ?? null;
+        onTtsEndRef.current = onTtsEnd ?? null;
 
         // Seed conversation history with the initial AI question
         conversationHistoryRef.current = [
@@ -52,12 +63,22 @@ export const useHTTPChat = () => {
 
     const _playTTS = useCallback(async (text) => {
         setIsAiSpeaking(true);
+        onTtsStartRef.current?.({ text });
         try {
             if (window.MediaSource) {
                 const mediaSource = new MediaSource();
                 const audio = new Audio();
                 const audioObjectUrl = URL.createObjectURL(mediaSource);
                 audio.src = audioObjectUrl;
+
+                // Route through shared AudioContext so TTS is captured in the webm
+                if (audioCtxRef.current && audioDestRef.current) {
+                    await audioCtxRef.current.resume();
+                    const elSource = audioCtxRef.current.createMediaElementSource(audio);
+                    elSource.connect(audioDestRef.current);
+                    elSource.connect(audioCtxRef.current.destination);
+                }
+
                 let finishPlayback;
                 let playbackFinished = false;
                 const playbackEnded = new Promise((resolve) => {
@@ -66,6 +87,7 @@ export const useHTTPChat = () => {
                         playbackFinished = true;
                         URL.revokeObjectURL(audioObjectUrl);
                         setIsAiSpeaking(false);
+                        onTtsEndRef.current?.();
                         resolve();
                     };
                     audio.onended = finishPlayback;
@@ -125,14 +147,18 @@ export const useHTTPChat = () => {
                 }
 
                 const arrayBuffer = await ttsResponse.arrayBuffer();
-                const audioContext = new AudioContext();
-                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                const source = audioContext.createBufferSource();
+                const audioCtx = audioCtxRef.current || new AudioContext();
+                const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                const source = audioCtx.createBufferSource();
                 source.buffer = audioBuffer;
-                source.connect(audioContext.destination);
+                if (audioDestRef.current) {
+                    source.connect(audioDestRef.current);
+                }
+                source.connect(audioCtx.destination);
                 const playbackEnded = new Promise((resolve) => {
                     source.onended = () => {
                         setIsAiSpeaking(false);
+                        onTtsEndRef.current?.();
                         resolve();
                     };
                 });
@@ -142,6 +168,7 @@ export const useHTTPChat = () => {
         } catch (err) {
             console.error('[useHTTPChat] TTS error:', err);
             setIsAiSpeaking(false);
+            onTtsEndRef.current?.();
         }
     }, []);
 

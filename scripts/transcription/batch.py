@@ -121,11 +121,21 @@ def list_pages_for_session(client, bucket: str, username: str, book_id: str) -> 
     return sorted(pages)
 
 
+def page_has_events(client, bucket: str, username: str, book_id: str, page: int) -> bool:
+    """Return True if S3 has at least one events JSON for this page (new-data path)."""
+    prefix = f"user-data/{username}/{book_id}/page-{page:02d}/events/"
+    paginator = client.get_paginator("list_objects_v2")
+    for result in paginator.paginate(Bucket=bucket, Prefix=prefix, MaxKeys=1):
+        if result.get("Contents"):
+            return True
+    return False
+
+
 def page_already_done(out_dir: Path, username: str, page: int) -> bool:
-    page_dir = out_dir / username / f"page-{page:02d}"
-    if not page_dir.exists():
+    user_dir = out_dir / username
+    if not user_dir.exists():
         return False
-    return any(page_dir.glob("*video-*.json"))
+    return any(user_dir.glob(f"*_page-{page:02d}_video-*.xlsx"))
 
 
 def filter_set(csv_arg: Optional[str]) -> Optional[set[str]]:
@@ -167,8 +177,9 @@ def main():
         log.error(f"audit CSV not found: {args.audit}. Run audit_legacy_variants.py first.")
         sys.exit(1)
 
-    # Import transcribe_legacy_page only after logging is set up so it inherits config
-    import transcribe_legacy_page as transcribe_mod
+    # Import both modules after logging is set up so they inherit config
+    import transcribe_legacy_page
+    import transcribe_page as transcribe_new
 
     df = pd.read_csv(args.audit, dtype={"username": str})
     user_filter = filter_set(args.usernames)
@@ -214,7 +225,8 @@ def main():
                 log.info(f"DRY-RUN  would transcribe {username} page-{page}")
                 continue
             try:
-                transcribe_mod.run_page(
+                mod = transcribe_new if page_has_events(client, bucket, username, book_id, page) else transcribe_legacy_page
+                mod.run_page(
                     client=client, bucket=bucket,
                     username=username, book_id=book_id, page=page,
                     condition=condition, engine_name=args.engine,

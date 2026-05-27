@@ -8,6 +8,7 @@ import { apiRequest } from '../../utils/api';
 import { getCachedAudio, cacheAudio } from '../../utils/audioCache';
 import InteractivePanel from './InteractivePanel/InteractivePanel';
 import { useNarration } from '../../hooks/useNarration';
+import { useSessionEventLog } from '../../hooks/useSessionEventLog';
 import { shouldShowNextGuide } from './nextButtonGuide';
 import './BookReader.css';
 
@@ -47,6 +48,10 @@ const BookReader = () => {
     const [globalStream, setGlobalStream] = useState(null);
     const mediaRecorderRef = useRef(null);
     const recordedChunksRef = useRef([]);
+    const audioCtxRef = useRef(null);
+    const audioDestRef = useRef(null);
+
+    const { logEvent, flushEvents } = useSessionEventLog();
 
     useEffect(() => {
         loadCurrentBook();
@@ -58,6 +63,11 @@ const BookReader = () => {
             if (globalStream) {
                 console.log('[BookReader] Stopping global stream tracks');
                 globalStream.getTracks().forEach(track => track.stop());
+            }
+            if (audioCtxRef.current) {
+                audioCtxRef.current.close();
+                audioCtxRef.current = null;
+                audioDestRef.current = null;
             }
         };
     }, [bookId]);
@@ -162,7 +172,7 @@ const BookReader = () => {
                 video: {
                     width: { ideal: 640 },
                     height: { ideal: 480 },
-                    frameRate: { ideal: 15 } // Low frame rate for reading trace is enough
+                    frameRate: { ideal: 15 }
                 },
                 audio: {
                     echoCancellation: true,
@@ -171,7 +181,21 @@ const BookReader = () => {
                     channelCount: 1
                 }
             });
-            setGlobalStream(stream);
+
+            // Build a shared AudioContext so mic + AI TTS can both be captured in the webm
+            const audioCtx = new AudioContext({ sampleRate: 24000 });
+            const destination = audioCtx.createMediaStreamDestination();
+            const micSource = audioCtx.createMediaStreamSource(stream);
+            micSource.connect(destination);
+            audioCtxRef.current = audioCtx;
+            audioDestRef.current = destination;
+
+            // Replace raw stream with mixed stream (destination audio + original video)
+            const mixedStream = new MediaStream([
+                ...destination.stream.getAudioTracks(),
+                ...stream.getVideoTracks(),
+            ]);
+            setGlobalStream(mixedStream);
         } catch (err) {
             console.error('[BookReader] Failed to initialize media stream:', err);
             // Non-blocking error: reading can continue without recording
@@ -209,16 +233,17 @@ const BookReader = () => {
             recorder.onstop = async () => {
                 const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
                 console.log(`[BookReader] Page recording stopped. Size: ${blob.size} bytes`);
+                const username = localStorage.getItem('username') || 'guest';
                 if (blob.size > 0) {
-                    // Capture current context for the async upload
                     uploadPageRecording(blob, currentBookId, currentPageNum);
                 }
+                flushEvents(username, currentBookId, currentPageNum);
             };
 
             // Use default timeslice (no argument) to let browser optimize blob creation for a single file
-            // This ensures better container integrity (headers/keyframes) compared to small slices
             recorder.start();
             mediaRecorderRef.current = recorder;
+            logEvent('recording_start');
             console.log(`[BookReader] Started recording for page ${currentPageNum}`);
 
         } catch (e) {
@@ -478,6 +503,9 @@ const BookReader = () => {
                             sharedStream={globalStream}
                             pageText={currentPage?.storyText}
                             onQuestionComplete={() => setCurrentQuestionComplete(true)}
+                            audioCtx={audioCtxRef.current}
+                            audioDestination={audioDestRef.current}
+                            onLogEvent={logEvent}
                         />
                     </div>
                 </Draggable>

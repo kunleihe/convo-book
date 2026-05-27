@@ -16,6 +16,9 @@ const InteractivePanel = ({
     sharedStream = null,
     pageText = '',
     onQuestionComplete,
+    audioCtx = null,
+    audioDestination = null,
+    onLogEvent = null,
 }) => {
     const [isAudioPlaying, setIsAudioPlaying] = useState(!!question?.questionText);
     // Gate between recording-stop and submit completing to prevent double presses
@@ -38,7 +41,10 @@ const InteractivePanel = ({
             transcriptionWS.clearAccumulatedTranscript();
             setIsUserRecording(false);
             setSilentHint(false);
-            httpChat.initialize(bookId, pageNumber, question, pageText);
+            httpChat.initialize(bookId, pageNumber, question, pageText, audioCtx, audioDestination, {
+                onTtsStart: ({ text }) => onLogEvent?.('ai_tts_start', { text, question_id: question.id }),
+                onTtsEnd: () => onLogEvent?.('ai_tts_end', {}),
+            });
             transcriptionWS.connect();
         }
         return () => {
@@ -73,6 +79,7 @@ const InteractivePanel = ({
     };
 
     const playQuestionTTSAsync = async (questionText) => {
+        onLogEvent?.('ai_tts_start', { text: questionText, question_id: question?.id });
         try {
             let audioBlob = await getCachedAudio(questionText);
             if (!audioBlob) {
@@ -92,11 +99,26 @@ const InteractivePanel = ({
 
             const audioObjectUrl = URL.createObjectURL(audioBlob);
             const audio = new Audio(audioObjectUrl);
-            audio.onended = () => { URL.revokeObjectURL(audioObjectUrl); updateAudioState(false); };
-            audio.onerror = () => { URL.revokeObjectURL(audioObjectUrl); updateAudioState(false); };
+
+            // Route through shared AudioContext so question TTS is captured in the webm
+            if (audioCtx && audioDestination) {
+                await audioCtx.resume();
+                const elSource = audioCtx.createMediaElementSource(audio);
+                elSource.connect(audioDestination);
+                elSource.connect(audioCtx.destination);
+            }
+
+            const finish = () => {
+                URL.revokeObjectURL(audioObjectUrl);
+                updateAudioState(false);
+                onLogEvent?.('ai_tts_end', {});
+            };
+            audio.onended = finish;
+            audio.onerror = finish;
             await audio.play();
         } catch {
             updateAudioState(false);
+            onLogEvent?.('ai_tts_end', {});
         }
     };
 
@@ -106,6 +128,7 @@ const InteractivePanel = ({
         try {
             transcriptionWS.commitAudioBuffer(); // fallback flush
             const text = transcriptionWS.getFinalTranscript();
+            onLogEvent?.('user_record_stop', { transcript: text || '', question_id: question?.id });
             if (options.isSilent || !text) {
                 transcriptionWS.clearAccumulatedTranscript();
                 setSilentHint(true);
@@ -117,7 +140,7 @@ const InteractivePanel = ({
         } finally {
             setIsProcessingTranscript(false);
         }
-    }, [transcriptionWS, httpChat]);
+    }, [transcriptionWS, httpChat, onLogEvent, question?.id]);
 
     // 气泡文字：优先显示最后一条 AI 消息，否则显示问题文字
     const lastAiMessage = httpChat.conversationMessages
@@ -191,7 +214,10 @@ const InteractivePanel = ({
                                 transcriptionWS.sendAudioData(pcm16Data);
                             }
                         }}
-                        onRecordingStart={() => setIsUserRecording(true)}
+                        onRecordingStart={() => {
+                            setIsUserRecording(true);
+                            onLogEvent?.('user_record_start', { question_id: question?.id });
+                        }}
                         onRecordingComplete={handleRecordingComplete}
                     />
                 </div>

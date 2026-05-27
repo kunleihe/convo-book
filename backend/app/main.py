@@ -11,6 +11,7 @@ from app.routes.conversations import router as conversations_router
 from app.routes.uploads import router as uploads_router
 from app.routes.chat import chat_router
 from app.routes.tts import tts_router
+from app.routes.events import router as events_router
 from app.config import settings, env_path
 
 @asynccontextmanager
@@ -47,6 +48,7 @@ app.include_router(conversations_router, prefix="/api", tags=["conversations"])
 app.include_router(uploads_router, prefix="/api", tags=["uploads"])
 app.include_router(chat_router, prefix="/api")
 app.include_router(tts_router, prefix="/api")
+app.include_router(events_router, prefix="/api", tags=["events"])
 
 # Root API endpoint
 @app.get("/")

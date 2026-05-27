@@ -1,12 +1,13 @@
 """
-Audit legacy S3 data to detect each user's condition (parent_ai / parent_only / unknown).
+Audit S3 data: match each user's condition from tracker.csv (ground truth).
 
 Usage:
     python audit_legacy_variants.py [--out audit.csv] [--prefix user-data/]
 
 Reads AWS credentials from backend/app/.env (or environment).
-Writes a CSV summary; sessions with `condition: unknown` also dumped to
-unknown_condition.txt for manual review.
+Condition is read from tracker.csv (id → condition). variant_overrides.yaml
+can override individual users when tracker.csv is wrong or missing.
+Sessions not found in either source are written to unknown_condition.txt.
 """
 
 from __future__ import annotations
@@ -23,7 +24,6 @@ from typing import Optional
 
 import boto3
 import pandas as pd
-import yaml
 from botocore.config import Config
 from dotenv import load_dotenv
 
@@ -32,12 +32,11 @@ log = logging.getLogger("audit")
 
 USERNAME_RE = re.compile(r"^\d{4}$")
 PAGE_RE = re.compile(r"^page-(\d+)$")
-CONVERSATIONS_AI_RE = re.compile(r"-ai-[A-Fa-f0-9-]+\.json$")
 WEBM_RE = re.compile(r"\.webm$")
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ENV = REPO_ROOT / "backend" / "app" / ".env"
-DEFAULT_OVERRIDES = Path(__file__).resolve().parent / "variant_overrides.yaml"
+DEFAULT_TRACKER = Path(__file__).resolve().parent / "tracker.csv"
 
 
 @dataclass
@@ -45,8 +44,6 @@ class SessionStats:
     username: str
     book_id: str
     pages_seen: set = field(default_factory=set)
-    page2_has_ai: Optional[bool] = None  # None = page-2 missing
-    page2_conv_dir_exists: bool = False
     webm_count_per_page: dict = field(default_factory=lambda: defaultdict(int))
     total_webm: int = 0
 
@@ -67,13 +64,21 @@ def load_env(env_path: Path) -> None:
         log.warning(f"No .env at {env_path}; relying on system environment")
 
 
-def load_overrides(path: Path) -> dict[str, str]:
+def load_tracker(path: Path) -> dict[str, str]:
+    """Load tracker.csv and return {username: condition} with underscores normalized."""
     if not path.exists():
+        log.warning(f"tracker.csv not found at {path}")
         return {}
-    with open(path) as f:
-        raw = yaml.safe_load(f) or {}
-    # All keys forced to string
-    return {str(k): v for k, v in raw.items() if v}
+    df = pd.read_csv(path, dtype={"id": str})
+    result = {}
+    for _, row in df.iterrows():
+        uid = str(row["id"]).strip()
+        cond = str(row["condition"]).strip().replace("-", "_")
+        if uid and cond:
+            result[uid] = cond
+    log.info(f"Loaded {len(result)} entries from tracker.csv")
+    return result
+
 
 
 def s3_client():
@@ -134,11 +139,6 @@ def collect_sessions(client, bucket: str, prefix: str, skipped_usernames: set) -
         sess = sessions.setdefault(sess_key, SessionStats(username=username, book_id=book_id))
         sess.pages_seen.add(page_num)
 
-        if page_num == 2 and subdir == "conversations":
-            sess.page2_conv_dir_exists = True
-            if CONVERSATIONS_AI_RE.search(filename):
-                sess.page2_has_ai = True
-
         if subdir == "media" and WEBM_RE.search(filename):
             sess.webm_count_per_page[page_num] += 1
             sess.total_webm += 1
@@ -146,48 +146,24 @@ def collect_sessions(client, bucket: str, prefix: str, skipped_usernames: set) -
     log.info(f"Done scanning. Total keys: {seen_count}")
     log.info(f"Collected {len(sessions)} (username, book_id) sessions; "
              f"skipped {len(skipped_usernames)} non-4-digit usernames")
-
-    # If page 2 had a conversations dir but no ai file, page2_has_ai is still None;
-    # we want explicit False in that case.
-    for sess in sessions.values():
-        if 2 in sess.pages_seen:
-            if sess.page2_conv_dir_exists and sess.page2_has_ai is None:
-                sess.page2_has_ai = False
-            elif not sess.page2_conv_dir_exists:
-                # page-2 exists but no conversations subdir → no ai files
-                sess.page2_has_ai = False
-        # else: page2 absent → leave page2_has_ai as None (=> condition unknown)
-
     return sessions
 
 
-def detect_condition(sess: SessionStats, overrides: dict[str, str]) -> str:
-    if sess.username in overrides:
-        return overrides[sess.username]
-    if sess.page2_has_ai is True:
-        return "parent_ai"
-    if sess.page2_has_ai is False:
-        return "parent_only"
-    return "unknown"
+def detect_condition(sess: SessionStats, tracker: dict[str, str]) -> str:
+    return tracker.get(sess.username, "unknown")
 
 
-def build_rows(sessions: dict, overrides: dict[str, str]) -> list[dict]:
+def build_rows(sessions: dict, tracker: dict[str, str]) -> list[dict]:
     rows = []
     for (username, book_id), sess in sorted(sessions.items()):
-        condition = detect_condition(sess, overrides)
+        condition = detect_condition(sess, tracker)
         rows.append({
             "username": username,
             "book_id": book_id,
             "condition": condition,
-            "page2_has_ai": (
-                "yes" if sess.page2_has_ai is True else
-                "no" if sess.page2_has_ai is False else
-                "missing"
-            ),
             "max_page_reached": sess.max_page_reached,
             "total_webm_count": sess.total_webm,
             "multi_webm_pages": str(sess.multi_webm_pages) if sess.multi_webm_pages else "",
-            "overridden": "yes" if username in overrides else "",
         })
     return rows
 
@@ -200,8 +176,8 @@ def main():
                         help="S3 prefix to scan (default: user-data/)")
     parser.add_argument("--bucket", default=None,
                         help="S3 bucket (default: from S3_BUCKET_NAME env var)")
-    parser.add_argument("--overrides", type=Path, default=DEFAULT_OVERRIDES,
-                        help="Path to variant_overrides.yaml")
+    parser.add_argument("--tracker", type=Path, default=DEFAULT_TRACKER,
+                        help="Path to tracker.csv (ground-truth condition per username)")
     parser.add_argument("--out", type=Path,
                         default=Path(__file__).resolve().parent / "audit.csv",
                         help="Output CSV path")
@@ -217,14 +193,13 @@ def main():
         sys.exit(1)
     log.info(f"Bucket: {bucket}  Prefix: {args.prefix}")
 
-    overrides = load_overrides(args.overrides)
-    log.info(f"Loaded {len(overrides)} override(s)")
+    tracker = load_tracker(args.tracker)
 
     client = s3_client()
     skipped_usernames: set = set()
     sessions = collect_sessions(client, bucket, args.prefix, skipped_usernames)
 
-    rows = build_rows(sessions, overrides)
+    rows = build_rows(sessions, tracker)
     df = pd.DataFrame(rows)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(args.out, index=False, encoding="utf-8-sig")
@@ -233,8 +208,8 @@ def main():
     unknown_rows = df[df["condition"] == "unknown"]
     if len(unknown_rows):
         with open(args.unknown_out, "w") as f:
-            f.write("# Sessions with unknown condition (page-2 missing).\n")
-            f.write("# Add these to variant_overrides.yaml manually.\n\n")
+            f.write("# Sessions in S3 but not found in tracker.csv.\n")
+            f.write("# Add these to tracker.csv or variant_overrides.yaml manually.\n\n")
             for _, r in unknown_rows.iterrows():
                 f.write(f"{r['username']}  # book_id={r['book_id']}  max_page={r['max_page_reached']}\n")
         log.info(f"Wrote {len(unknown_rows)} unknown sessions to {args.unknown_out}")

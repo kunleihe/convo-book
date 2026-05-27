@@ -1,21 +1,22 @@
 """
-Transcribe one page of one session from legacy data (no events.json, no AI in webm).
+Transcribe one page of one session from new data (has events.json + AI audio mixed in webm).
 
 Flow:
-    1. List S3 to find all webm + conversations for this (user, book, page)
+    1. List S3 to find all webm + events.json for this (user, book, page)
     2. For each webm:
         a. Download + decode duration via ffprobe
-        b. Compute recording_start ≈ filename_ts - webm_duration
-        c. Convert webm → 16kHz mono wav (ffmpeg)
-        d. Run pyannote diarization (num_speakers depends on condition)
+        b. Convert webm → 16kHz mono wav (ffmpeg)
+        c. Read events.json: extract ai_tts_start/end intervals + AI text
+        d. Replace AI intervals with silence in wav → diarize only parent/child
         e. F0-label clusters as parent/child
-        f. Extract each diarization segment (with overlap), transcribe via OpenAI
-        g. For parent_ai: insert AI turns by timestamp from conversations/*.json
-        h. Write JSON + CSV
+        f. Transcribe each diarization segment via OpenAI
+        g. Merge AI turns (from events.json text) back into timeline
+        h. Write xlsx
+
 Usage:
-    python transcribe_legacy_page.py \
+    python transcribe_page.py \
         --username 7102 --book-id speed-racer --page 2 \
-        --condition parent_ai --engine openai-mini
+        --condition parent_ai --engine openai-full
 """
 
 from __future__ import annotations
@@ -34,7 +35,9 @@ from pathlib import Path
 from typing import Optional
 
 import boto3
+import numpy as np
 import pandas as pd
+import soundfile as sf
 from botocore.config import Config
 from dotenv import load_dotenv
 
@@ -53,10 +56,10 @@ DEFAULT_CACHE_DIR = SCRIPT_DIR / ".cache"
 WEBM_NAME_RE = re.compile(
     r"^(?P<ts>\d{8}-\d{6})-(?P<stage>[^-]+)-(?P<uid>[A-Fa-f0-9]+)\.webm$"
 )
-SEG_OVERLAP_SEC = 0.3       # padding around each segment when slicing for transcription
+SEG_OVERLAP_SEC = 0.3
 MIN_SEG_DURATION = 0.4
-MERGE_GAP_SEC = 1.0          # merge adjacent same-speaker segments with gap <= this
-OPENAI_CONCURRENCY = 10      # parallel API calls per webm
+MERGE_GAP_SEC = 1.0
+OPENAI_CONCURRENCY = 10
 
 
 @dataclass
@@ -65,11 +68,10 @@ class Turn:
     t_end: float
     speaker: str          # "parent" | "child" | "ai"
     text: str
-    source: str           # "openai-mini" | "conversations.json" | ...
+    source: str
     f0_median: Optional[float] = None
     realtime_transcript: Optional[str] = None
     ai_orphan_warning: bool = False
-    ai_timing_approximate: bool = False
 
 
 @dataclass
@@ -81,15 +83,14 @@ class AttemptResult:
     video_index: int
     webm_file: str
     webm_duration_sec: float
-    recording_start_iso: str
-    recording_end_iso: str
+    recording_started_at: Optional[str]
     f0_margin_hz: float
     needs_review: bool
-    legacy: bool = True
+    legacy: bool = False
     turns: list[Turn] = field(default_factory=list)
 
 
-# ---------- AWS / S3 helpers ---------- #
+# ---------- AWS / S3 helpers (shared with transcribe_legacy_page) ---------- #
 
 def load_env(env_path: Path) -> None:
     if env_path.exists():
@@ -144,16 +145,22 @@ def webm_to_wav(webm: Path, wav: Path, sr: int = 16000) -> None:
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def parse_filename_ts(name: str) -> dt.datetime:
-    """Parse `20260324-204700` from the webm filename → naive datetime (UTC assumed)."""
-    m = WEBM_NAME_RE.match(name)
-    if not m:
-        raise ValueError(f"Unrecognized webm filename: {name}")
-    ts_str = m.group("ts")
-    return dt.datetime.strptime(ts_str, "%Y%m%d-%H%M%S").replace(tzinfo=dt.timezone.utc)
+def silence_intervals(wav_path: Path, intervals: list[tuple[float, float]], sr: int = 16000) -> Path:
+    """Return a new wav with the given time intervals replaced by silence."""
+    audio, file_sr = sf.read(str(wav_path), dtype="int16")
+    if file_sr != sr:
+        raise ValueError(f"Expected {sr} Hz, got {file_sr} Hz")
+    for t0, t1 in intervals:
+        s0 = int(t0 * sr)
+        s1 = min(int(t1 * sr), len(audio))
+        if s0 < s1:
+            audio[s0:s1] = 0
+    out = wav_path.with_stem(wav_path.stem + "_no_ai")
+    sf.write(str(out), audio, sr, subtype="PCM_16")
+    return out
 
 
-# ---------- Diarization ---------- #
+# ---------- Diarization (shared logic) ---------- #
 
 _DIARIZER = None
 
@@ -167,8 +174,7 @@ def get_diarizer():
         token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
         if not token:
             raise RuntimeError(
-                "Set HF_TOKEN env var to your HuggingFace access token. "
-                "Also accept terms at https://hf.co/pyannote/speaker-diarization-3.1"
+                "Set HF_TOKEN env var to your HuggingFace access token."
             )
 
         device_pref = os.environ.get("PYANNOTE_DEVICE", "auto").lower()
@@ -176,7 +182,6 @@ def get_diarizer():
             if torch.cuda.is_available():
                 device = torch.device("cuda")
             elif torch.backends.mps.is_available():
-                # Allow unsupported MPS ops to fall back to CPU instead of crashing
                 os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
                 device = torch.device("mps")
             else:
@@ -186,14 +191,11 @@ def get_diarizer():
 
         log.info(f"Loading pyannote/speaker-diarization-3.1 on {device} ...")
         try:
-            # pyannote.audio >= 3.3 uses `token`
             _DIARIZER = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", token=token)
         except TypeError:
-            # older versions use `use_auth_token`
             _DIARIZER = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1", use_auth_token=token)
         try:
             _DIARIZER.to(device)
-            log.info(f"Diarizer moved to {device}")
         except Exception as e:
             log.warning(f"Could not move diarizer to {device}: {e}; staying on CPU")
     return _DIARIZER
@@ -203,18 +205,13 @@ def merge_adjacent_segments(
     clusters: dict[str, list[tuple[float, float]]],
     max_gap: float = MERGE_GAP_SEC,
 ) -> dict[str, list[tuple[float, float]]]:
-    """
-    Merge same-speaker segments separated by <= max_gap seconds into one segment.
-    Reduces duplicate transcriptions from pyannote splitting a single utterance
-    at natural pauses (breath, hesitation).
-    """
     merged: dict[str, list[tuple[float, float]]] = {}
     for speaker, segs in clusters.items():
         sorted_segs = sorted(segs)
         out: list[tuple[float, float]] = []
         for t0, t1 in sorted_segs:
             if out and t0 - out[-1][1] <= max_gap:
-                out[-1] = (out[-1][0], t1)   # extend previous segment
+                out[-1] = (out[-1][0], t1)
             else:
                 out.append((t0, t1))
         merged[speaker] = out
@@ -222,16 +219,14 @@ def merge_adjacent_segments(
 
 
 def diarize(wav: Path, min_speakers: int = 1, max_speakers: int = 2) -> dict[str, list[tuple[float, float]]]:
-    """Return {speaker_label: [(t_start, t_end), ...]}."""
     pipeline = get_diarizer()
     result = pipeline(str(wav), min_speakers=min_speakers, max_speakers=max_speakers)
-    # pyannote 4.x returns DiarizeOutput; older versions return an Annotation directly.
     if hasattr(result, "speaker_diarization"):
         annotation = result.speaker_diarization
     elif hasattr(result, "itertracks"):
         annotation = result
     else:
-        raise RuntimeError(f"Unexpected pyannote output type: {type(result)} (attrs: {dir(result)})")
+        raise RuntimeError(f"Unexpected pyannote output type: {type(result)}")
 
     clusters: dict[str, list[tuple[float, float]]] = {}
     for turn, _, speaker in annotation.itertracks(yield_label=True):
@@ -241,33 +236,39 @@ def diarize(wav: Path, min_speakers: int = 1, max_speakers: int = 2) -> dict[str
     return clusters
 
 
-# ---------- AI turns from conversations.json ---------- #
+# ---------- events.json parsing ---------- #
 
-def load_ai_turns_from_conversations(
-    client, bucket: str, page_prefix: str, cache_dir: Path,
-) -> list[dict]:
-    """Returns AI conversation entries with iso timestamps."""
-    conv_prefix = page_prefix + "conversations/"
-    keys = list_keys(client, bucket, conv_prefix)
-    ai_keys = [k for k in keys if "-ai-" in Path(k).name]
-    turns = []
-    for k in ai_keys:
-        local = cache_dir / "conversations" / Path(k).name
+def load_events(client, bucket: str, page_prefix: str, cache_dir: Path) -> list[dict]:
+    """Load all events JSON files for this page, return merged event lists."""
+    events_keys = list_keys(client, bucket, page_prefix + "events/")
+    all_events = []
+    for k in sorted(events_keys):
+        local = cache_dir / "events" / Path(k).name
         download_to(client, bucket, k, local)
         with open(local) as f:
             data = json.load(f)
-        if data.get("sender") != "ai":
-            continue
-        turns.append(data)
-    return turns
+        all_events.append(data)
+    return all_events
 
 
-def parse_iso_ts(ts: str) -> dt.datetime:
-    # Accept formats like "2026-03-24T20:46:14.130792" (no tz) or with offset
-    out = dt.datetime.fromisoformat(ts)
-    if out.tzinfo is None:
-        out = out.replace(tzinfo=dt.timezone.utc)
-    return out
+def extract_ai_intervals_from_events(
+    events_list: list[dict],
+) -> list[tuple[float, float, str]]:
+    """
+    From events data, return list of (t_start, t_end, text) for AI TTS intervals.
+    Matches ai_tts_start with the next ai_tts_end.
+    """
+    intervals: list[tuple[float, float, str]] = []
+    for events_data in events_list:
+        evs = events_data.get("events", [])
+        pending_start: Optional[tuple[float, str]] = None
+        for ev in evs:
+            if ev["type"] == "ai_tts_start":
+                pending_start = (ev["t"], ev.get("text", ""))
+            elif ev["type"] == "ai_tts_end" and pending_start is not None:
+                intervals.append((pending_start[0], ev["t"], pending_start[1]))
+                pending_start = None
+    return intervals
 
 
 # ---------- Per-attempt pipeline ---------- #
@@ -276,58 +277,65 @@ def transcribe_attempt(
     *, client, bucket: str, username: str, book_id: str, page: int,
     condition: str, video_index: int, webm_key: str,
     cache_dir: Path, engine_name: str, language: Optional[str],
-    ai_turns_meta: list[dict],
+    events_list: list[dict],
 ) -> AttemptResult:
     webm_filename = Path(webm_key).name
-    webm_ts = parse_filename_ts(webm_filename)
-
     webm_local = cache_dir / "webm" / webm_filename
     download_to(client, bucket, webm_key, webm_local)
     wav_local = cache_dir / "wav" / (webm_local.stem + ".wav")
     webm_to_wav(webm_local, wav_local)
 
     duration = ffprobe_duration(wav_local)
-    recording_end = webm_ts                             # ≈ upload time
-    recording_start = recording_end - dt.timedelta(seconds=duration)
-    log.info(
-        f"[video {video_index}] {webm_filename}  duration={duration:.1f}s  "
-        f"start≈{recording_start.isoformat()}  end≈{recording_end.isoformat()}"
-    )
+    log.info(f"[video {video_index}] {webm_filename}  duration={duration:.1f}s")
 
-    # 1) Diarize
+    # Recording start from events.json (exact wall-clock time)
+    recording_started_at = None
+    for ed in events_list:
+        if ed.get("recording_started_at"):
+            recording_started_at = ed["recording_started_at"]
+            break
+
+    # 1) Extract AI intervals from events.json
+    ai_intervals = extract_ai_intervals_from_events(events_list)
+    log.info(f"[video {video_index}] {len(ai_intervals)} AI TTS interval(s) from events.json")
+
+    # 2) Replace AI intervals with silence → cleaner diarization
+    wav_for_diarize = wav_local
+    if ai_intervals and condition == "parent_ai":
+        wav_for_diarize = silence_intervals(wav_local, [(t0, t1) for t0, t1, _ in ai_intervals])
+        log.info(f"[video {video_index}] Silenced AI intervals in wav for diarization")
+
+    # 3) Diarize on the silenced wav
     max_speakers = 2
     log.info(f"[video {video_index}] Diarizing (min_speakers=1, max_speakers={max_speakers}) ...")
-    clusters = diarize(wav_local, min_speakers=1, max_speakers=max_speakers)
-    # Merge adjacent same-speaker segments (suppresses duplicate transcription
-    # when pyannote splits a single utterance at natural pauses).
+    clusters = diarize(wav_for_diarize, min_speakers=1, max_speakers=max_speakers)
     pre_counts = {s: len(v) for s, v in clusters.items()}
     clusters = merge_adjacent_segments(clusters)
     post_counts = {s: len(v) for s, v in clusters.items()}
     if pre_counts != post_counts:
         log.info(f"[video {video_index}] Merged segments: {pre_counts} → {post_counts}")
+
     if not clusters:
         log.warning(f"[video {video_index}] No speech detected in {webm_filename}")
         return AttemptResult(
             username=username, book_id=book_id, page_number=page, condition=condition,
             video_index=video_index, webm_file=webm_filename,
             webm_duration_sec=duration,
-            recording_start_iso=recording_start.isoformat(),
-            recording_end_iso=recording_end.isoformat(),
+            recording_started_at=recording_started_at,
             f0_margin_hz=0.0, needs_review=True,
         )
 
-    # 2) F0 label clusters
+    # 4) F0-label clusters
     label_result = label_clusters(str(wav_local), clusters)
     cluster_to_role = label_result["labels"]
     f0_medians = label_result["f0_medians"]
     log.info(f"[video {video_index}] F0 labels: {cluster_to_role}  medians={f0_medians}")
 
-    # 3) Transcribe each segment (parallel API calls)
+    # 5) Transcribe each segment (parallel API calls)
     engine = get_engine(engine_name)
     seg_dir = cache_dir / "segments" / f"video-{video_index}"
 
-    # 3a) First extract all segment wav files (fast, sequential)
-    tasks = []  # list of dicts: cluster_id, role, t0, t1, seg_path
+    tasks = []
     for cluster_id, segs in clusters.items():
         role = cluster_to_role.get(cluster_id, "unknown")
         if role == "unknown":
@@ -335,12 +343,8 @@ def transcribe_attempt(
         for i, (t0, t1) in enumerate(segs):
             seg_path = seg_dir / f"{cluster_id}_{i:03d}.wav"
             extract_segment(str(wav_local), str(seg_path), t0, t1, overlap_sec=SEG_OVERLAP_SEC)
-            tasks.append({
-                "cluster_id": cluster_id, "role": role,
-                "t0": t0, "t1": t1, "seg_path": seg_path,
-            })
+            tasks.append({"cluster_id": cluster_id, "role": role, "t0": t0, "t1": t1, "seg_path": seg_path})
 
-    # 3b) Transcribe in parallel
     def _transcribe_one(task):
         try:
             text = engine.transcribe_segment(str(task["seg_path"]), language=language)
@@ -350,8 +354,7 @@ def transcribe_attempt(
         return task, text
 
     user_turns: list[Turn] = []
-    log.info(f"[video {video_index}] Transcribing {len(tasks)} segments "
-             f"(concurrency={OPENAI_CONCURRENCY}) ...")
+    log.info(f"[video {video_index}] Transcribing {len(tasks)} segments (concurrency={OPENAI_CONCURRENCY}) ...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=OPENAI_CONCURRENCY) as pool:
         for task, text in pool.map(_transcribe_one, tasks):
             if not text:
@@ -363,46 +366,31 @@ def transcribe_attempt(
                 f0_median=f0_medians.get(task["cluster_id"]),
             ))
 
-    # 4) Insert AI turns (parent_ai only; from conversations.json, timing approximate)
-    ai_user_turns: list[Turn] = list(user_turns)
+    # 6) Insert AI turns from events.json (precise timestamps, ground-truth text)
+    all_turns: list[Turn] = list(user_turns)
     if condition == "parent_ai":
-        for ai_msg in ai_turns_meta:
-            text = (ai_msg.get("text") or "").strip()
-            if not text:
-                continue
-            ts_str = ai_msg.get("timestamp") or ai_msg.get("client_timestamp")
-            if not ts_str:
-                continue
-            try:
-                ai_ts = parse_iso_ts(ts_str)
-            except Exception:
-                continue
-            # Check if AI msg falls within this attempt's recording window
-            if ai_ts < recording_start or ai_ts > recording_end:
-                continue
-            offset = (ai_ts - recording_start).total_seconds()
-            ai_user_turns.append(Turn(
-                t_start=offset, t_end=offset + max(2.0, len(text) * 0.07),
-                speaker="ai", text=text,
-                source="conversations.json",
-                ai_timing_approximate=True,
-            ))
+        for t0, t1, text in ai_intervals:
+            if text:
+                all_turns.append(Turn(
+                    t_start=t0, t_end=t1,
+                    speaker="ai", text=text,
+                    source="events.json",
+                ))
 
-    ai_user_turns.sort(key=lambda t: t.t_start)
+    all_turns.sort(key=lambda t: t.t_start)
 
     return AttemptResult(
         username=username, book_id=book_id, page_number=page, condition=condition,
         video_index=video_index, webm_file=webm_filename,
         webm_duration_sec=duration,
-        recording_start_iso=recording_start.isoformat(),
-        recording_end_iso=recording_end.isoformat(),
+        recording_started_at=recording_started_at,
         f0_margin_hz=label_result["f0_margin_hz"],
         needs_review=label_result["needs_review"],
-        turns=ai_user_turns,
+        turns=all_turns,
     )
 
 
-# ---------- Output writers ---------- #
+# ---------- Output writer ---------- #
 
 def write_attempt_outputs(result: AttemptResult, out_dir: Path) -> None:
     user_dir = out_dir / result.username
@@ -433,13 +421,12 @@ def write_attempt_outputs(result: AttemptResult, out_dir: Path) -> None:
             "needs_review": result.needs_review,
             "realtime_transcript": t.realtime_transcript or "",
             "ai_orphan_warning": t.ai_orphan_warning,
-            "ai_timing_approximate": t.ai_timing_approximate,
         })
     columns = [
         "username", "condition", "page_number", "video_index", "webm_file",
         "webm_duration_sec", "turn_index", "t_start", "t_end", "speaker",
         "text", "source", "f0_median", "needs_review", "realtime_transcript",
-        "ai_orphan_warning", "ai_timing_approximate",
+        "ai_orphan_warning",
     ]
     pd.DataFrame(rows, columns=columns).to_excel(xlsx_path, index=False)
     log.info(f"Wrote {xlsx_path.name} ({len(result.turns)} turns)")
@@ -454,10 +441,6 @@ def run_page(
     out_dir: Path = DEFAULT_OUT_DIR,
     cache_dir_root: Path = DEFAULT_CACHE_DIR,
 ) -> int:
-    """
-    Transcribe one page. Returns number of attempts processed (>=0). Skips silently
-    if there are no webm files. All exceptions per-attempt are caught and logged.
-    """
     page_prefix = f"user-data/{username}/{book_id}/page-{page:02d}/"
     cache_dir = cache_dir_root / username / book_id / f"page-{page:02d}"
 
@@ -467,12 +450,13 @@ def run_page(
     if not webm_keys:
         log.warning(f"No webm files at {page_prefix}media/")
         return 0
-    log.info(f"Found {len(webm_keys)} webm file(s) for {username}/{book_id}/page-{page}")
 
-    ai_turns_meta = []
-    if condition == "parent_ai":
-        ai_turns_meta = load_ai_turns_from_conversations(client, bucket, page_prefix, cache_dir)
-        log.info(f"Found {len(ai_turns_meta)} AI conversation entries")
+    events_list = load_events(client, bucket, page_prefix, cache_dir)
+    if not events_list:
+        log.warning(f"No events.json found at {page_prefix}events/ — use transcribe_legacy_page.py instead")
+        return 0
+
+    log.info(f"Found {len(webm_keys)} webm + {len(events_list)} events file(s) for {username}/{book_id}/page-{page}")
 
     processed = 0
     for video_idx, webm_key in enumerate(webm_keys, start=1):
@@ -483,7 +467,7 @@ def run_page(
                 condition=condition, video_index=video_idx,
                 webm_key=webm_key, cache_dir=cache_dir,
                 engine_name=engine_name, language=language,
-                ai_turns_meta=ai_turns_meta,
+                events_list=events_list,
             )
             write_attempt_outputs(result, out_dir)
             processed += 1
@@ -503,8 +487,7 @@ def main():
                         choices=["parent_ai", "parent_only", "ai_only"])
     parser.add_argument("--engine", default="openai-full",
                         choices=["openai-mini", "openai-full", "whisper-1", "faster-whisper-local"])
-    parser.add_argument("--language", default=None,
-                        help="Language hint, e.g. 'zh' or 'en'. Leave unset for auto-detect.")
+    parser.add_argument("--language", default=None)
     parser.add_argument("--bucket", default=None)
     parser.add_argument("--env", type=Path, default=DEFAULT_ENV)
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT_DIR)

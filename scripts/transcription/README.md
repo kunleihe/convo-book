@@ -1,8 +1,19 @@
-# 离线转录脚本（Stage 1）
+# 离线转录脚本
 
-把 S3 上已收集的家长 / 孩子 / AI 三方阅读 session 转成结构化对话表格。
+把 S3 上收集的家长 / 孩子 / AI 三方阅读 session 转成结构化对话表格（xlsx）。
 
-完整设计见 `/Users/kunleihe/.claude/plans/ai-hard-code-lucky-scone.md`。
+## 快速开始
+
+```bash
+cd scripts/transcription
+python audit_legacy_variants.py          # Step 1：扫 S3，生成 audit.csv
+# （可选）编辑 variant_overrides.yaml 修正 unknown condition
+python batch.py --dry-run                # Step 2：预览会跑多少 page
+caffeinate -i .venv/bin/python batch.py --skip-done &   # Step 3：全量跑
+tail -f batch.log                        # 看进度
+```
+
+---
 
 ## 一次性环境准备
 
@@ -13,49 +24,71 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 额外要装
+### 系统依赖
 
-1. **ffmpeg / ffprobe**（系统命令）
-   ```bash
-   brew install ffmpeg
-   ```
+**ffmpeg / ffprobe**（音频转换 + 时长读取）：
 
-2. **pyannote 模型权限**（首次使用）
-   - 注册 https://huggingface.co/
-   - 接受 https://huggingface.co/pyannote/speaker-diarization-3.1 的许可
-   - 创建 token：https://huggingface.co/settings/tokens
-   - export：`export HF_TOKEN=hf_xxx`
+```bash
+brew install ffmpeg
+```
 
-3. **环境变量**（自动从 `backend/app/.env` 读取）：
-   - `AWS_ACCESS_KEY_ID`、`AWS_SECRET_ACCESS_KEY`、`AWS_REGION`、`S3_BUCKET_NAME`
-   - `OPENAI_API_KEY`（转录时需要）
+### 环境变量
+
+自动从 `backend/app/.env` 读取，无需额外配置：
+
+| 变量 | 用途 |
+|------|------|
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | S3 访问 |
+| `S3_BUCKET_NAME` | 目标 bucket |
+| `OPENAI_API_KEY` | 转录 API 调用 |
+| `HF_TOKEN` | pyannote 说话人分离模型（仅 legacy 路径需要） |
+
+**HF_TOKEN 获取**（首次使用 legacy 路径时需要）：
+1. 注册 https://huggingface.co/
+2. 接受 https://huggingface.co/pyannote/speaker-diarization-3.1 的使用许可
+3. 在 https://huggingface.co/settings/tokens 创建 Access Token
+4. 写入 `backend/app/.env`：`HF_TOKEN=hf_xxx`
+
+---
 
 ## 完整流程
 
-### Step 1：扫 S3，搞清楚每个家庭的 condition
+### Step 1：Audit — 扫 S3，确定每个 session 的 condition
 
 ```bash
 python audit_legacy_variants.py
 ```
 
 产出：
-- `audit.csv` —— 每行一个 (username, book_id)，含 `condition`、`page2_has_ai`、`max_page_reached`、`total_webm_count`、`multi_webm_pages`
-- `unknown_condition.txt` —— page-2 不存在的 session，需人工标注
+- **`audit.csv`** — 每行一个 `(username, book_id)`，包含 `condition`、`max_page_reached`、`total_webm_count` 等
+- **`unknown_condition.txt`** — page-2 缺失、无法自动判断 condition 的 session，需人工处理
 
-只处理 4 位数字的 username。
+只处理 4 位数字的 username（测试账号等非标 username 自动跳过）。
 
-### Step 2：人工 review
+**Condition 判断逻辑**：
+- `parent_ai`：page-2 的 `conversations/` 下有 `-ai-*.json` 文件
+- `parent_only`：page-2 有 `conversations/` 但无 AI 文件
+- `unknown`：page-2 不存在（可能用户没到那一页）
 
-打开 `audit.csv`，必要时编辑 `variant_overrides.yaml`：
+**手动修正 unknown**：编辑 `variant_overrides.yaml`，然后重跑 audit：
 
 ```yaml
+# variant_overrides.yaml
 "7102": parent_ai
 "8033": parent_only
 ```
 
-然后重跑 `python audit_legacy_variants.py` 复核。
+```bash
+python audit_legacy_variants.py  # 重跑，unknown 减少
+```
 
-### Step 3：单个 page 测试（推荐先做）
+---
+
+### Step 2（可选）：单页测试
+
+批量跑之前建议先用单个 session/page 验证输出质量。
+
+**Legacy 数据**（无 events.json）：
 
 ```bash
 python transcribe_legacy_page.py \
@@ -63,157 +96,157 @@ python transcribe_legacy_page.py \
     --condition parent_ai --engine openai-full
 ```
 
-产出：`output/7102/page-02/attempt-1__{webm_filename}.{json,csv}`
-
-可切换 engine 做 A/B 对比：
-- **`openai-full` —— gpt-4o-transcribe（默认，最高准确率）**
-- `openai-mini` —— gpt-4o-mini-transcribe（便宜一半，准确率略低）
-- `whisper-1` —— 老版 whisper API（含 word-level timestamp，本流程用不到）
-- `faster-whisper-local` —— 本地跑 large-v3，免费、私密
-
-`--language zh` / `--language en` 可指定语言；不传则模型自动检测（中英混杂场景建议不传）。
-
-### Step 4（可选）：把所有视频下载到本地
-
-如果你想离线翻看原始 webm，或者发给同事 / 备份到外接硬盘：
+**新数据**（有 events.json）：
 
 ```bash
-# 先 dry-run 看会下多少
-python download_videos.py --dry-run
-
-# 全部下下来（默认 4 并发，跳过已有文件）
-python download_videos.py
-
-# 加速
-python download_videos.py --parallel 8
-
-# 缩小范围
-python download_videos.py --usernames 7102,8033
-python download_videos.py --conditions parent_ai
-python download_videos.py --pages 2,3
-
-# 改保存位置（默认 scripts/transcription/videos/）
-python download_videos.py --out-dir ~/Desktop/videos
+python transcribe_page.py \
+    --username 7102 --book-id speed-racer --page 2 \
+    --condition parent_ai --engine openai-full
 ```
 
-文件结构：`videos/{username}/page-{NN}/{webm_filename}`
+**Engine 选项**：
 
-跳过 `condition=unknown` 的 session（加 `--include-unknown` 强制下）。
-**断点续传**：已存在的文件自动跳过，可以随时停下重跑。
+| Engine | 模型 | 说明 |
+|--------|------|------|
+| `openai-full`（默认） | gpt-4o-transcribe | 最高准确率 |
+| `openai-mini` | gpt-4o-mini-transcribe | 约便宜一半，准确率略低 |
+| `whisper-1` | whisper-1 API | 支持 word-level timestamp（本流程暂不使用） |
+| `faster-whisper-local` | large-v3（本地） | 免费、完全离线、数据不出本机 |
 
-### Step 5：批量转录
+`--language zh` / `--language en` 可指定语言；不传则自动检测（中英混杂建议不传）。
+
+---
+
+### Step 3：批量转录
+
+`batch.py` 读取 `audit.csv`，对每个 `(username, book_id)` 遍历所有 page 并转录。
+
+**自动路由**：每个 page 会检查 S3 是否存在 `events/` 目录：
+- 有 `events/`（新数据）→ 使用 `transcribe_page.py`
+- 无 `events/`（legacy 数据）→ 使用 `transcribe_legacy_page.py`
 
 ```bash
-# 先 dry-run 看跑多少个 page，不执行
+# 预览：看会跑多少个 page，不执行任何转录
 python batch.py --dry-run
 
-# 小范围试
-python batch.py --usernames 7102,8033 --pages 2,3 --engine openai-full
+# 小范围测试
+python batch.py --usernames 7102,8033 --pages 2,3
 
-# 跑全部（前台，能看实时输出）
-python batch.py --skip-done --engine openai-full
+# 全量跑（前台，能看实时输出）
+python batch.py --skip-done
 ```
 
-`batch.py` 调用 `transcribe_legacy_page.py` 处理 audit.csv 里的每个 (user, page)。
+**常用参数**：
 
-**可选参数**：
-- `--usernames 7102,8033` —— 只跑这些用户
-- `--pages 2,3,4` —— 只跑这些 page
-- `--conditions parent_ai,parent_only` —— 只跑指定 condition
-- `--skip-done` —— 跳过已有输出的 page（中途断了重跑必加）
-- `--dry-run` —— 只打印命令，不执行
+| 参数 | 说明 |
+|------|------|
+| `--skip-done` | 跳过已有输出文件的 page（中断后重跑必加） |
+| `--dry-run` | 只打印，不执行 |
+| `--usernames 7102,8033` | 只处理指定用户 |
+| `--pages 2,3,4` | 只处理指定页码 |
+| `--conditions parent_ai` | 只处理指定 condition |
+| `--engine openai-full` | 转录引擎（默认 openai-full） |
+| `--language zh` | 语言提示（默认自动检测） |
 
-#### 全量跑：挂后台 + 防睡眠（推荐）
-
-`batch.py` 自己处理日志写文件 + 屏蔽 tty 信号，**不需要 `nohup` / `disown` / shell 重定向**：
+#### 全量跑推荐命令（挂后台 + 防睡眠）
 
 ```bash
-cd scripts/transcription
 caffeinate -i .venv/bin/python batch.py --skip-done &
 ```
 
-- `.venv/bin/python` 用绝对路径，避免激活错 venv 导致 import 失败
-- `caffeinate -i` 防止系统 idle sleep（屏幕可以关、电脑可以锁屏）
-- 后台运行（`&`），日志自动写入 `batch.log`
-- 关 terminal **会** SIGHUP 子进程；如果你要关窗口跑，加 `nohup` 前缀
-
-最稳妥的关 terminal 也能继续跑的版本：
+关 terminal 也不中断的版本：
 
 ```bash
 nohup caffeinate -i .venv/bin/python batch.py --skip-done &
 ```
 
-**为什么不用 disown 了**：旧版需要 `disown` 是因为 pyannote 内部偶尔会写 `/dev/tty`，zsh 默认会因此挂起后台进程。新版 batch.py 在启动时 `signal.signal(SIGTTOU, SIG_IGN)`，从根本上屏蔽了这个挂起源。
+- `.venv/bin/python` 用绝对路径，避免 venv 未激活导致 import 失败
+- `caffeinate -i` 防止系统 idle sleep（屏幕可以关、电脑可以锁屏，但不能合盖）
+- 日志自动写入 `batch.log`，不需要 shell 重定向
 
 **注意事项**：
-- 电脑要**保持开机 + 接电源 + 联 Wi-Fi**
-- 合盖默认会睡眠（脚本停），如需合盖跑请接外接显示器进 Clamshell mode
-- 关机/重启会丢进度，但 `--skip-done` 重启后能接上
+- 电脑需**保持开机 + 接电源 + 联网**
+- 合盖默认会睡眠；如需合盖跑，接外接显示器使用 Clamshell 模式
+- 关机/重启会中断，但 `--skip-done` 重启后可接续
 
-**管理后台任务**：
+**监控后台任务**：
+
 ```bash
-# 看实时滚屏
-tail -f batch.log
-
-# 看最近 N 行
-tail -50 batch.log
-
-# 确认进程还在跑（看 PID）
-ps aux | grep batch.py | grep -v grep
-
-# 停掉后台任务
-kill <PID>
-
-# 看处理了多少用户 / page
-ls output/ | wc -l
-find output/ -name "*.csv" | wc -l
+tail -f batch.log                          # 实时进度
+ps aux | grep batch.py | grep -v grep      # 确认进程在跑
+kill <PID>                                 # 停止
+find output/ -name "*.xlsx" | wc -l        # 已完成的 page 数
 ```
 
-#### 关键性能改进（v2）
-
-新版 `batch.py` **在单进程内跑所有 page**，pyannote 模型只加载一次，对比旧版每个 page 都 spawn 子进程要省 1.5-2 小时（576 webm × 10-15s 模型加载）。
+---
 
 ## 输出结构
 
 ```
 scripts/transcription/
-├── audit.csv                                            # Step 1 输出
-├── unknown_condition.txt                                # Step 1 输出（仅 unknown）
-├── variant_overrides.yaml                               # 人工覆盖
-├── videos/{username}/page-{N}/                          # Step 4 下载的原始 webm
-├── .cache/{user}/{book}/page-{N}/                       # 转录过程中的 webm/wav/segments 缓存（可删）
-└── output/{username}/page-{N}/                          # Step 5 转录产物
-    ├── {username}_{condition}_page-{N}_video-{i}__{webm_stem}.json   # 完整 turn 数据
-    └── {username}_{condition}_page-{N}_video-{i}__{webm_stem}.csv    # 扁平表
+├── audit.csv                      # audit 产出（session 列表 + condition）
+├── unknown_condition.txt          # audit 产出（condition 未知的 session）
+├── variant_overrides.yaml         # 人工修正 condition 的覆盖配置
+├── batch.log                      # batch 运行日志
+├── .cache/                        # 转录过程的中间缓存（可整个删除）
+│   └── {username}/{book_id}/page-{NN}/
+│       ├── webm/                  # 下载的原始录音
+│       ├── wav/                   # 转换后的 16kHz wav
+│       ├── segments/              # 按 turn 切割的音频片段
+│       └── events/                # 下载的 events.json（新数据路径）
+└── output/
+    └── {username}/
+        └── {username}_{condition}_page-{NN}_video-{i}__{webm_stem}.xlsx
 ```
 
-## CSV / JSON 字段
+每个 webm 生成一个 xlsx 文件。一个 page 可能对应多个 webm（多次录制尝试）。
+
+---
+
+## 输出 xlsx 字段
 
 | 字段 | 含义 |
 |------|------|
-| `username` | 4 位数字 |
-| `condition` | parent_ai / parent_only / ai_only |
-| `page_number` | 页码 |
-| `attempt_index` | 同页内多 webm 的序号，1, 2... |
+| `username` | 4 位数字 ID |
+| `condition` | `parent_ai` / `parent_only` / `ai_only` |
+| `page_number` | 书页页码 |
+| `video_index` | 同页内多 webm 的序号（1, 2, ...） |
 | `webm_file` | 原始 webm 文件名 |
-| `webm_duration_sec` | 该 attempt 音频长度 |
-| `turn_index` | 该 attempt 内 turn 序号 |
-| `t_start` / `t_end` | webm 内相对秒数 |
-| `speaker` | parent / child / ai |
-| `text` | 转录文本（AI 段用 conversations.json 原文） |
-| `source` | 文本来源（engine 名 / conversations.json） |
-| `f0_median` | 该 cluster 的中位基频（Hz） |
-| `needs_review` | parent vs child 区分置信度低（F0 margin < 60Hz） |
-| `realtime_transcript` | 老 JSON 的 user 文本（参考） |
-| `ai_orphan_warning` | AI 消息时间落在所有 webm 区间外 |
-| `ai_timing_approximate` | 老数据 AI timestamp 是绝对时间反推，精度 ±1-3s |
+| `webm_duration_sec` | 该 webm 的音频时长（秒） |
+| `turn_index` | 该 webm 内的 turn 序号 |
+| `t_start` / `t_end` | Turn 在 webm 内的相对时间（秒） |
+| `speaker` | `parent` / `child` / `ai` |
+| `text` | 转录文本（AI turn 使用原始文本，非转录） |
+| `source` | 文本来源：engine 名 / `conversations.json`（legacy）/ `events.json`（新） |
+| `f0_median` | 该说话人 cluster 的中位基频（Hz），用于 parent/child 区分 |
+| `needs_review` | `True` 表示 F0 margin < 60Hz，parent/child 区分置信度低，需人工核查 |
+| `realtime_transcript` | 保留字段（旧 Realtime API 路径，当前流程为空） |
+| `ai_orphan_warning` | AI 消息时间戳落在所有 webm 录制窗口之外（legacy 路径） |
+| `ai_timing_approximate` | AI 时间戳由绝对时间反推，精度 ±1-3s（legacy 路径） |
 
-## 评估建议
+---
 
-跑完 2-3 个代表性 session 后，人工对照真实对话核对：
-1. **WER**：感官评估转录准确率（含中英混杂、孩子嘟囔）
-2. **Parent / Child 区分**：看 `speaker` 标签是否正确，留意 `needs_review=true` 的行
-3. **AI 段时间**：看 AI 段在时间线上的位置是否合理（应该是 user 段之间）
-4. **F0 margin**：跑 5-10 个家庭看分布，普遍 > 80Hz 说明启发式可靠
+## Legacy vs 新数据的区别
 
-评估结果决定是否推进阶段 2（前端录 AI TTS + events.json）。
+| 对比项 | Legacy 数据 | 新数据 |
+|--------|------------|--------|
+| 识别方式 | S3 无 `events/` 目录 | S3 有 `events/` 目录 |
+| AI 文本来源 | `conversations/*.json`（存储的对话记录） | `events/*.json`（实时事件日志） |
+| AI 时间戳 | 绝对时间戳反推，精度 ±1-3s | 精确相对时间（音频内偏移量） |
+| AI 音频处理 | 无法从 webm 中区分 AI 声音，diarize 所有声音 | 先将 AI TTS 区间静音，再 diarize |
+| 输出标记 | `ai_timing_approximate=True` | 无此标记 |
+
+---
+
+## 各脚本说明
+
+| 脚本 | 用途 |
+|------|------|
+| `audit_legacy_variants.py` | 扫 S3，生成 `audit.csv` + `unknown_condition.txt` |
+| `batch.py` | 批量入口，读 audit.csv，自动路由 legacy/新 路径 |
+| `transcribe_legacy_page.py` | 处理单页 legacy 数据（pyannote + F0 + OpenAI） |
+| `transcribe_page.py` | 处理单页新数据（events.json 驱动） |
+| `openai_transcribe.py` | OpenAI / 本地 whisper 转录引擎封装 |
+| `speaker_label.py` | 基于 F0 判断哪个 cluster 是 parent / child |
+| `download_videos.py` | 把 S3 上的 webm 批量下载到本地 |
+| `migrate_csv_to_xlsx.py` | 将旧版 csv 输出迁移为 xlsx |
