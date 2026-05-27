@@ -178,8 +178,8 @@ def main():
         sys.exit(1)
 
     # Import both modules after logging is set up so they inherit config
-    import transcribe_legacy_page
-    import transcribe_page as transcribe_new
+    import transcribe_no_ai_events
+    import transcribe_with_ai_events
 
     df = pd.read_csv(args.audit, dtype={"username": str})
     user_filter = filter_set(args.usernames)
@@ -225,7 +225,7 @@ def main():
                 log.info(f"DRY-RUN  would transcribe {username} page-{page}")
                 continue
             try:
-                mod = transcribe_new if page_has_events(client, bucket, username, book_id, page) else transcribe_legacy_page
+                mod = transcribe_with_ai_events if page_has_events(client, bucket, username, book_id, page) else transcribe_no_ai_events
                 mod.run_page(
                     client=client, bucket=bucket,
                     username=username, book_id=book_id, page=page,
