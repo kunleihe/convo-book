@@ -6,8 +6,7 @@
 
 ```bash
 cd scripts/transcription
-python audit_legacy_variants.py          # Step 1：扫 S3，生成 audit.csv
-# （可选）编辑 variant_overrides.yaml 修正 unknown condition
+python audit.py                          # Step 1：扫 S3，生成 audit.csv
 python batch.py --dry-run                # Step 2：预览会跑多少 page
 caffeinate -i .venv/bin/python batch.py --skip-done &   # Step 3：全量跑
 tail -f batch.log                        # 看进度
@@ -56,31 +55,16 @@ brew install ffmpeg
 ### Step 1：Audit — 扫 S3，确定每个 session 的 condition
 
 ```bash
-python audit_legacy_variants.py
+python audit.py
 ```
 
 产出：
 - **`audit.csv`** — 每行一个 `(username, book_id)`，包含 `condition`、`max_page_reached`、`total_webm_count` 等
-- **`unknown_condition.txt`** — page-2 缺失、无法自动判断 condition 的 session，需人工处理
+- **`unknown_condition.txt`** — 在 S3 有数据但 `tracker.csv` 里找不到的 session
 
 只处理 4 位数字的 username（测试账号等非标 username 自动跳过）。
 
-**Condition 判断逻辑**：
-- `parent_ai`：page-2 的 `conversations/` 下有 `-ai-*.json` 文件
-- `parent_only`：page-2 有 `conversations/` 但无 AI 文件
-- `unknown`：page-2 不存在（可能用户没到那一页）
-
-**手动修正 unknown**：编辑 `variant_overrides.yaml`，然后重跑 audit：
-
-```yaml
-# variant_overrides.yaml
-"7102": parent_ai
-"8033": parent_only
-```
-
-```bash
-python audit_legacy_variants.py  # 重跑，unknown 减少
-```
+**Condition 来源**：直接从 `tracker.csv` 读取（`id` 列对应 username，`condition` 列为 ground truth）。S3 里有数据但 tracker 里没有记录的 username 会出现在 `unknown_condition.txt`。
 
 ---
 
@@ -184,9 +168,9 @@ find output/ -name "*.xlsx" | wc -l        # 已完成的 page 数
 
 ```
 scripts/transcription/
+├── tracker.csv                    # ground truth：每个 username 的 condition
 ├── audit.csv                      # audit 产出（session 列表 + condition）
-├── unknown_condition.txt          # audit 产出（condition 未知的 session）
-├── variant_overrides.yaml         # 人工修正 condition 的覆盖配置
+├── unknown_condition.txt          # audit 产出（S3 有数据但 tracker 里没有的 session）
 ├── batch.log                      # batch 运行日志
 ├── .cache/                        # 转录过程的中间缓存（可整个删除）
 │   └── {username}/{book_id}/page-{NN}/
@@ -242,10 +226,10 @@ scripts/transcription/
 
 | 脚本 | 用途 |
 |------|------|
-| `audit_legacy_variants.py` | 扫 S3，生成 `audit.csv` + `unknown_condition.txt` |
-| `batch.py` | 批量入口，读 audit.csv，自动路由 legacy/新 路径 |
-| `transcribe_legacy_page.py` | 处理单页 legacy 数据（pyannote + F0 + OpenAI） |
-| `transcribe_page.py` | 处理单页新数据（events.json 驱动） |
+| `audit.py` | 扫 S3，从 tracker.csv 读 condition，生成 `audit.csv` |
+| `batch.py` | 批量入口，读 audit.csv，自动路由两条转录路径 |
+| `transcribe_no_ai_events.py` | 处理无 events.json 的 session（pyannote + F0 + OpenAI） |
+| `transcribe_with_ai_events.py` | 处理有 events.json 的 session（AI 区间静音后再 diarize） |
 | `openai_transcribe.py` | OpenAI / 本地 whisper 转录引擎封装 |
 | `speaker_label.py` | 基于 F0 判断哪个 cluster 是 parent / child |
 | `download_videos.py` | 把 S3 上的 webm 批量下载到本地 |
