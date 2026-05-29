@@ -371,6 +371,11 @@ const BookReader = () => {
                 </div>
 
                 <div className="center-controls">
+                    {bookData && (
+                        <span className="page-indicator">
+                            {parseInt(pageNumber, 10)} / {bookData.totalPages}
+                        </span>
+                    )}
                 </div>
 
                 <div className="right-controls">
