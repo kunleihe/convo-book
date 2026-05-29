@@ -563,7 +563,11 @@ const BookReader = () => {
                 </div>
 
                 <div className="center-controls">
-                    {/* Center button removed as it's now in the panel */}
+                    {bookData && (
+                        <span className="page-indicator">
+                            {parseInt(pageNumber, 10)} / {bookData.totalPages}
+                        </span>
+                    )}
                 </div>
 
                 <div className="right-controls">
