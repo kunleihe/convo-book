@@ -28,21 +28,7 @@ const BookReader = () => {
     const [showEndModal, setShowEndModal] = useState(false);
 
     // Narration audio
-    const { isPlaying: isNarrationPlaying, ended: narrationEnded, currentTime: narrationTime, duration: narrationDuration, play: playNarration, pause: pauseNarration, seek: seekNarration } = useNarration(currentPage?.narrationAudioUrl);
-
-    // Narration overlay visibility
-    const [narrationOverlayVisible, setNarrationOverlayVisible] = useState(true);
-    const narrationHideTimerRef = useRef(null);
-
-    useEffect(() => {
-        setNarrationOverlayVisible(true);
-        clearTimeout(narrationHideTimerRef.current);
-        narrationHideTimerRef.current = setTimeout(() => setNarrationOverlayVisible(false), 2000);
-        return () => clearTimeout(narrationHideTimerRef.current);
-    }, [pageNumber]);
-
-    const handleImageLayerMouseEnter = () => setNarrationOverlayVisible(true);
-    const handleImageLayerMouseLeave = () => setNarrationOverlayVisible(false);
+    const { isPlaying: isNarrationPlaying, currentTime: narrationTime, duration: narrationDuration, play: playNarration, pause: pauseNarration, seek: seekNarration } = useNarration(currentPage?.narrationAudioUrl);
 
     // Global Media Stream for Page Recording
     const [globalStream, setGlobalStream] = useState(null);
@@ -104,26 +90,6 @@ const BookReader = () => {
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
     }, [bookData, pageNumber]);
-
-    // Full-auto: after page narration finishes, auto-navigate to next page.
-    useEffect(() => {
-        if (!currentPage) return;
-        if (showEndModal) return;
-
-        const hasNarration = !!currentPage?.narrationAudioUrl;
-        if (hasNarration) {
-            // Only advance when narration ended naturally (not paused by user)
-            if (!narrationEnded) return;
-        }
-
-        const delay = hasNarration ? 400 : 1500;
-        const t = setTimeout(() => {
-            handleNextPage();
-        }, delay);
-        return () => clearTimeout(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, narrationEnded, showEndModal]);
-
 
     const initializeGlobalStream = async () => {
         try {
@@ -341,14 +307,14 @@ const BookReader = () => {
     return (
         <div className="book-reader-fullscreen">
             {/* Layer 1: Story Image */}
-            <div className="image-layer" onMouseEnter={handleImageLayerMouseEnter} onMouseLeave={handleImageLayerMouseLeave}>
+            <div className="image-layer">
                 <img
                     src={currentPage.imageUrl}
                     alt={`Page ${currentPage.pageNumber}`}
                     className="fullscreen-image"
                 />
                 {currentPage?.narrationAudioUrl && (
-                    <div className={`narration-overlay${narrationOverlayVisible ? ' visible' : ''}`}>
+                    <div className="narration-overlay">
                         <button
                             className="narration-play-btn"
                             onClick={isNarrationPlaying ? pauseNarration : playNarration}
