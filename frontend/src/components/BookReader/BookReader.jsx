@@ -42,7 +42,21 @@ const BookReader = () => {
     const [isAiSpeaking, setIsAiSpeaking] = useState(false);
 
     // Narration audio
-    const { isPlaying: isNarrationPlaying, currentTime: narrationTime, duration: narrationDuration, play: playNarration, pause: pauseNarration, seek: seekNarration } = useNarration(currentPage?.narrationAudioUrl);
+    const { isPlaying: isNarrationPlaying, ended: narrationEnded, currentTime: narrationTime, duration: narrationDuration, play: playNarration, pause: pauseNarration, seek: seekNarration } = useNarration(currentPage?.narrationAudioUrl);
+
+    // Narration overlay visibility
+    const [narrationOverlayVisible, setNarrationOverlayVisible] = useState(true);
+    const narrationHideTimerRef = useRef(null);
+
+    useEffect(() => {
+        setNarrationOverlayVisible(true);
+        clearTimeout(narrationHideTimerRef.current);
+        narrationHideTimerRef.current = setTimeout(() => setNarrationOverlayVisible(false), 2000);
+        return () => clearTimeout(narrationHideTimerRef.current);
+    }, [pageNumber]);
+
+    const handleImageLayerMouseEnter = () => setNarrationOverlayVisible(true);
+    const handleImageLayerMouseLeave = () => setNarrationOverlayVisible(false);
 
     // Global audio stream shared with VoiceButton
     const [globalStream, setGlobalStream] = useState(null);
@@ -108,17 +122,6 @@ const BookReader = () => {
 
     // Full-auto: after page narration finishes (or page has none), auto-trigger next step
     // — opens chat panel if the page has questions, otherwise navigates to the next page.
-    const narrationStartedRef = useRef(false);
-    useEffect(() => {
-        narrationStartedRef.current = false;
-    }, [pageNumber]);
-
-    useEffect(() => {
-        if (isNarrationPlaying) {
-            narrationStartedRef.current = true;
-        }
-    }, [isNarrationPlaying]);
-
     useEffect(() => {
         if (!currentPage) return;
         if (showChatPanel) return;       // chat flow drives advance from here
@@ -126,9 +129,8 @@ const BookReader = () => {
 
         const hasNarration = !!currentPage?.narrationAudioUrl;
         if (hasNarration) {
-            // Wait for narration to start AND finish before advancing
-            if (!narrationStartedRef.current) return;
-            if (isNarrationPlaying) return;
+            // Only advance when narration ended naturally (not paused by user)
+            if (!narrationEnded) return;
         }
 
         const delay = hasNarration ? 400 : 1500;
@@ -137,7 +139,7 @@ const BookReader = () => {
         }, delay);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, isNarrationPlaying, showChatPanel, showEndModal]);
+    }, [currentPage, narrationEnded, showChatPanel, showEndModal]);
 
     // 翻到含问题的页面时，提前在后台生成并缓存问题 TTS 音频
     useEffect(() => {
@@ -474,14 +476,14 @@ const BookReader = () => {
     return (
         <div className="book-reader-fullscreen">
             {/* Layer 1: Story Image */}
-            <div className="image-layer">
+            <div className="image-layer" onMouseEnter={handleImageLayerMouseEnter} onMouseLeave={handleImageLayerMouseLeave}>
                 <img
                     src={currentPage.imageUrl}
                     alt={`Page ${currentPage.pageNumber}`}
                     className="fullscreen-image"
                 />
                 {currentPage?.narrationAudioUrl && (
-                    <div className="narration-overlay">
+                    <div className={`narration-overlay${narrationOverlayVisible ? ' visible' : ''}`}>
                         <button
                             className="narration-play-btn"
                             onClick={isNarrationPlaying ? pauseNarration : playNarration}
