@@ -30,13 +30,7 @@ const InteractivePanel = ({
 
     const prevIsAiSpeakingRef = useRef(false);
     const prevIsUserRecordingRef = useRef(false);
-    const popAudioRef = useRef(null);
-    if (popAudioRef.current === null) {
-        const audio = new Audio(popSoundUrl);
-        audio.volume = 1;
-        audio.preload = 'auto';
-        popAudioRef.current = audio;
-    }
+    const popBufferRef = useRef(null);
 
     // --- Hooks ---
     const httpChat = useHTTPChat();
@@ -45,45 +39,23 @@ const InteractivePanel = ({
         useCallback(() => {}, [])
     );
 
-    const playPopSound = useCallback(() => {
-        const audio = popAudioRef.current;
-        if (!audio) return;
-
-        audio.currentTime = 0;
-        audio.play().catch((error) => {
-            console.warn('[InteractivePanel] Pop sound playback failed:', error);
-        });
-    }, []);
-
-    // Warm up the cue on the first user gesture so deployed browsers are less likely
-    // to block the later auto-recording cue.
+    // Decode pop.mp3 into an AudioBuffer once, reuse on every play.
     useEffect(() => {
-        const unlockPopSound = () => {
-            const audio = popAudioRef.current;
-            if (!audio) return;
+        if (!audioCtx) return;
+        fetch(popSoundUrl)
+            .then((res) => res.arrayBuffer())
+            .then((buf) => audioCtx.decodeAudioData(buf))
+            .then((decoded) => { popBufferRef.current = decoded; })
+            .catch((err) => console.warn('[InteractivePanel] Pop sound decode failed:', err));
+    }, [audioCtx]);
 
-            audio.muted = true;
-            audio.currentTime = 0;
-            audio.play()
-                .then(() => {
-                    audio.pause();
-                    audio.currentTime = 0;
-                    audio.muted = false;
-                })
-                .catch((error) => {
-                    audio.muted = false;
-                    console.warn('[InteractivePanel] Pop sound warmup failed:', error);
-                });
-        };
-
-        window.addEventListener('pointerdown', unlockPopSound, { once: true });
-        window.addEventListener('keydown', unlockPopSound, { once: true });
-
-        return () => {
-            window.removeEventListener('pointerdown', unlockPopSound);
-            window.removeEventListener('keydown', unlockPopSound);
-        };
-    }, []);
+    const playPopSound = useCallback(() => {
+        if (!audioCtx || !popBufferRef.current) return;
+        const src = audioCtx.createBufferSource();
+        src.buffer = popBufferRef.current;
+        src.connect(audioCtx.destination);
+        src.start(0);
+    }, [audioCtx]);
 
     // --- Lifecycle: initialize on question/page change ---
     useEffect(() => {
