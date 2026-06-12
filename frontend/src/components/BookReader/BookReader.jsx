@@ -30,6 +30,20 @@ const BookReader = () => {
     // Narration audio
     const { isPlaying: isNarrationPlaying, currentTime: narrationTime, duration: narrationDuration, play: playNarration, pause: pauseNarration, seek: seekNarration } = useNarration(currentPage?.narrationAudioUrl);
 
+    // Narration overlay visibility
+    const [narrationOverlayVisible, setNarrationOverlayVisible] = useState(true);
+    const narrationHideTimerRef = useRef(null);
+
+    useEffect(() => {
+        setNarrationOverlayVisible(true);
+        clearTimeout(narrationHideTimerRef.current);
+        narrationHideTimerRef.current = setTimeout(() => setNarrationOverlayVisible(false), 2000);
+        return () => clearTimeout(narrationHideTimerRef.current);
+    }, [pageNumber]);
+
+    const handleImageLayerMouseEnter = () => setNarrationOverlayVisible(true);
+    const handleImageLayerMouseLeave = () => setNarrationOverlayVisible(false);
+
     // Global Media Stream for Page Recording
     const [globalStream, setGlobalStream] = useState(null);
     const mediaRecorderRef = useRef(null);
@@ -307,14 +321,14 @@ const BookReader = () => {
     return (
         <div className="book-reader-fullscreen">
             {/* Layer 1: Story Image */}
-            <div className="image-layer">
+            <div className="image-layer" onMouseEnter={handleImageLayerMouseEnter} onMouseLeave={handleImageLayerMouseLeave}>
                 <img
                     src={currentPage.imageUrl}
                     alt={`Page ${currentPage.pageNumber}`}
                     className="fullscreen-image"
                 />
                 {currentPage?.narrationAudioUrl && (
-                    <div className="narration-overlay">
+                    <div className={`narration-overlay${narrationOverlayVisible ? ' visible' : ''}`}>
                         <button
                             className="narration-play-btn"
                             onClick={isNarrationPlaying ? pauseNarration : playNarration}
