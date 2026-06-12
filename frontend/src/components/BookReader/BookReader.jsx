@@ -42,7 +42,21 @@ const BookReader = () => {
     const [currentQuestionComplete, setCurrentQuestionComplete] = useState(false);
 
     // Narration audio
-    const { isPlaying: isNarrationPlaying, currentTime: narrationTime, duration: narrationDuration, play: playNarration, pause: pauseNarration, seek: seekNarration } = useNarration(currentPage?.narrationAudioUrl);
+    const { isPlaying: isNarrationPlaying, ended: narrationEnded, currentTime: narrationTime, duration: narrationDuration, play: playNarration, pause: pauseNarration, seek: seekNarration } = useNarration(currentPage?.narrationAudioUrl);
+
+    // Narration overlay visibility
+    const [narrationOverlayVisible, setNarrationOverlayVisible] = useState(true);
+    const narrationHideTimerRef = useRef(null);
+
+    useEffect(() => {
+        setNarrationOverlayVisible(true);
+        clearTimeout(narrationHideTimerRef.current);
+        narrationHideTimerRef.current = setTimeout(() => setNarrationOverlayVisible(false), 2000);
+        return () => clearTimeout(narrationHideTimerRef.current);
+    }, [pageNumber]);
+
+    const handleImageLayerMouseEnter = () => setNarrationOverlayVisible(true);
+    const handleImageLayerMouseLeave = () => setNarrationOverlayVisible(false);
 
     // Global Media Stream for Page Recording & Chat
     const [globalStream, setGlobalStream] = useState(null);
@@ -118,6 +132,39 @@ const BookReader = () => {
     useEffect(() => {
         setCurrentQuestionComplete(false);
     }, [activeQuestion?.id, pageNumber]);
+
+    // Auto advance to next question/page when current question is final and AI has finished speaking
+    useEffect(() => {
+        if (!currentQuestionComplete) return;
+        if (isAiSpeaking || isQuestionAudioPlaying) return;
+        const t = setTimeout(() => {
+            handleNextPage();
+        }, 500);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentQuestionComplete, isAiSpeaking, isQuestionAudioPlaying]);
+
+    // Full-auto: after page narration finishes (or page has none), auto-trigger next step
+    // — opens chat panel if the page has questions, otherwise navigates to the next page.
+    useEffect(() => {
+        if (!currentPage) return;
+        if (showChatPanel) return;       // chat flow drives advance from here
+        if (showEndModal) return;
+
+        const hasNarration = !!currentPage?.narrationAudioUrl;
+        if (hasNarration) {
+            // Only advance when narration ended naturally (not paused by user)
+            if (!narrationEnded) return;
+        }
+
+        const delay = hasNarration ? 400 : 1500;
+        const t = setTimeout(() => {
+            handleNextPage();
+        }, delay);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentPage, narrationEnded, showChatPanel, showEndModal]);
+
 
     // 翻到含问题的页面时，提前在后台生成并缓存问题 TTS 音频
     useEffect(() => {
@@ -447,14 +494,14 @@ const BookReader = () => {
     return (
         <div className="book-reader-fullscreen">
             {/* Layer 1: Story Image */}
-            <div className="image-layer">
+            <div className="image-layer" onMouseEnter={handleImageLayerMouseEnter} onMouseLeave={handleImageLayerMouseLeave}>
                 <img
                     src={currentPage.imageUrl}
                     alt={`Page ${currentPage.pageNumber}`}
                     className="fullscreen-image"
                 />
                 {currentPage?.narrationAudioUrl && (
-                    <div className="narration-overlay">
+                    <div className={`narration-overlay${narrationOverlayVisible ? ' visible' : ''}`}>
                         <button
                             className="narration-play-btn"
                             onClick={isNarrationPlaying ? pauseNarration : playNarration}
