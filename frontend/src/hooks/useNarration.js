@@ -3,7 +3,6 @@ import { useRef, useState, useEffect } from 'react';
 export function useNarration(narrationAudioUrl) {
     const audioRef = useRef(null);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [ended, setEnded] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
 
@@ -15,11 +14,10 @@ export function useNarration(narrationAudioUrl) {
         setCurrentTime(0);
         setDuration(0);
         setIsPlaying(false);
-        setEnded(false);
 
         const onMetadata = () => setDuration(audio.duration);
         const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-        const onEnded = () => { setIsPlaying(false); setEnded(true); };
+        const onEnded = () => setIsPlaying(false);
 
         audio.addEventListener('loadedmetadata', onMetadata);
         audio.addEventListener('timeupdate', onTimeUpdate);
@@ -36,9 +34,9 @@ export function useNarration(narrationAudioUrl) {
         };
     }, [narrationAudioUrl]);
 
-    const play = () => { audioRef.current?.play(); setIsPlaying(true); setEnded(false); };
+    const play = () => { audioRef.current?.play(); setIsPlaying(true); };
     const pause = () => { audioRef.current?.pause(); setIsPlaying(false); };
     const seek = (t) => { if (audioRef.current) audioRef.current.currentTime = t; };
 
-    return { isPlaying, ended, currentTime, duration, play, pause, seek };
+    return { isPlaying, currentTime, duration, play, pause, seek };
 }
