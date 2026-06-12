@@ -30,13 +30,8 @@ const InteractivePanel = ({
 
     const prevIsAiSpeakingRef = useRef(false);
     const prevIsUserRecordingRef = useRef(false);
-    const popAudioRef = useRef(null);
-    if (popAudioRef.current === null) {
-        const audio = new Audio(popSoundUrl);
-        audio.volume = 1;
-        audio.preload = 'auto';
-        popAudioRef.current = audio;
-    }
+    const popBufferRef = useRef(null);
+    const popDecodePromiseRef = useRef(null);
 
     // --- Hooks ---
     const httpChat = useHTTPChat();
@@ -45,45 +40,38 @@ const InteractivePanel = ({
         useCallback(() => {}, [])
     );
 
-    const playPopSound = useCallback(() => {
-        const audio = popAudioRef.current;
-        if (!audio) return;
-
-        audio.currentTime = 0;
-        audio.play().catch((error) => {
-            console.warn('[InteractivePanel] Pop sound playback failed:', error);
-        });
-    }, []);
-
-    // Warm up the cue on the first user gesture so deployed browsers are less likely
-    // to block the later auto-recording cue.
+    // Eagerly decode pop.mp3 into an AudioBuffer as soon as AudioContext is available.
     useEffect(() => {
-        const unlockPopSound = () => {
-            const audio = popAudioRef.current;
-            if (!audio) return;
+        if (!audioCtx) return;
+        const promise = fetch(popSoundUrl)
+            .then((res) => res.arrayBuffer())
+            .then((buf) => audioCtx.decodeAudioData(buf))
+            .then((decoded) => { popBufferRef.current = decoded; })
+            .catch((err) => console.warn('[InteractivePanel] Pop sound pre-decode failed:', err));
+        popDecodePromiseRef.current = promise;
+    }, [audioCtx]);
 
-            audio.muted = true;
-            audio.currentTime = 0;
-            audio.play()
-                .then(() => {
-                    audio.pause();
-                    audio.currentTime = 0;
-                    audio.muted = false;
-                })
-                .catch((error) => {
-                    audio.muted = false;
-                    console.warn('[InteractivePanel] Pop sound warmup failed:', error);
-                });
-        };
+    const playPopSound = useCallback(async () => {
+        if (!audioCtx) return;
 
-        window.addEventListener('pointerdown', unlockPopSound, { once: true });
-        window.addEventListener('keydown', unlockPopSound, { once: true });
+        // If buffer not ready yet, wait for the in-flight decode (handles CDN cold-start delay).
+        if (!popBufferRef.current) {
+            if (popDecodePromiseRef.current) {
+                await popDecodePromiseRef.current;
+            }
+            if (!popBufferRef.current) return;
+        }
 
-        return () => {
-            window.removeEventListener('pointerdown', unlockPopSound);
-            window.removeEventListener('keydown', unlockPopSound);
-        };
-    }, []);
+        // Resume context if suspended (before any TTS has played on first round).
+        if (audioCtx.state !== 'running') {
+            try { await audioCtx.resume(); } catch (e) { /* swallow — best effort */ }
+        }
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = popBufferRef.current;
+        src.connect(audioCtx.destination);
+        src.start(audioCtx.currentTime);
+    }, [audioCtx]);
 
     // --- Lifecycle: initialize on question/page change ---
     useEffect(() => {
