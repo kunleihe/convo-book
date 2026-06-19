@@ -4,6 +4,7 @@ import { useHTTPChat } from '../../../hooks/useHTTPChat';
 import { useTranscriptionWebSocket } from '../../../hooks/useTranscriptionWebSocket';
 import { getCachedAudio, cacheAudio } from '../../../utils/audioCache';
 import { apiRequest } from '../../../utils/api';
+import popSoundUrl from '../../../assets/pop.mp3';
 import './InteractivePanel.css';
 
 const InteractivePanel = ({
@@ -28,6 +29,9 @@ const InteractivePanel = ({
     const [shouldRecord, setShouldRecord] = useState(false);
 
     const prevIsAiSpeakingRef = useRef(false);
+    const prevIsUserRecordingRef = useRef(false);
+    const popBufferRef = useRef(null);
+    const popDecodePromiseRef = useRef(null);
 
     // --- Hooks ---
     const httpChat = useHTTPChat();
@@ -35,6 +39,39 @@ const InteractivePanel = ({
     const transcriptionWS = useTranscriptionWebSocket(
         useCallback(() => {}, [])
     );
+
+    // Eagerly decode pop.mp3 into an AudioBuffer as soon as AudioContext is available.
+    useEffect(() => {
+        if (!audioCtx) return;
+        const promise = fetch(popSoundUrl)
+            .then((res) => res.arrayBuffer())
+            .then((buf) => audioCtx.decodeAudioData(buf))
+            .then((decoded) => { popBufferRef.current = decoded; })
+            .catch((err) => console.warn('[InteractivePanel] Pop sound pre-decode failed:', err));
+        popDecodePromiseRef.current = promise;
+    }, [audioCtx]);
+
+    const playPopSound = useCallback(async () => {
+        if (!audioCtx) return;
+
+        // If buffer not ready yet, wait for the in-flight decode (handles CDN cold-start delay).
+        if (!popBufferRef.current) {
+            if (popDecodePromiseRef.current) {
+                await popDecodePromiseRef.current;
+            }
+            if (!popBufferRef.current) return;
+        }
+
+        // Resume context if suspended (before any TTS has played on first round).
+        if (audioCtx.state !== 'running') {
+            try { await audioCtx.resume(); } catch (e) { /* swallow — best effort */ }
+        }
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = popBufferRef.current;
+        src.connect(audioCtx.destination);
+        src.start(audioCtx.currentTime);
+    }, [audioCtx]);
 
     // --- Lifecycle: initialize on question/page change ---
     useEffect(() => {
@@ -68,6 +105,14 @@ const InteractivePanel = ({
         onAiSpeakingChange?.(httpChat.isAiSpeaking);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [httpChat.isAiSpeaking]);
+
+    // --- 录音开启瞬间播放 pop 提示音 ---
+    useEffect(() => {
+        if (isUserRecording && !prevIsUserRecordingRef.current) {
+            playPopSound();
+        }
+        prevIsUserRecordingRef.current = isUserRecording;
+    }, [isUserRecording, playPopSound]);
 
     // --- Auto-start recording on falling edge of AI speaking (round >= 2) ---
     useEffect(() => {
