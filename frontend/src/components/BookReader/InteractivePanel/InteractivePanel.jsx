@@ -44,7 +44,10 @@ const InteractivePanel = ({
     useEffect(() => {
         if (!audioCtx) return;
         const promise = fetch(popSoundUrl)
-            .then((res) => res.arrayBuffer())
+            .then((res) => {
+                if (!res.ok) throw new Error(`HTTP ${res.status} fetching pop sound`);
+                return res.arrayBuffer();
+            })
             .then((buf) => audioCtx.decodeAudioData(buf))
             .then((decoded) => { popBufferRef.current = decoded; })
             .catch((err) => console.warn('[InteractivePanel] Pop sound pre-decode failed:', err));
@@ -199,6 +202,7 @@ const InteractivePanel = ({
                 httpChat.submitTranscript('[no response]');
             } else if (options.isSilent || !text) {
                 transcriptionWS.clearAccumulatedTranscript();
+                httpChat.submitTranscript('[no response]');
             } else {
                 httpChat.submitTranscript(text);
             }

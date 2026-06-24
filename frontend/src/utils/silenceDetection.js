@@ -9,7 +9,7 @@
  */
 export const detectSilence = (pcm16Data, options = {}) => {
     const {
-        threshold = 500,
+        threshold = 100,
         minDuration = 0.5,
         sampleRate = 24000
     } = options;

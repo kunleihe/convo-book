@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useAudioRecorder } from '../../../../hooks/useAudioRecorder';
 
-const VAD_THRESHOLD = 500;          // RMS threshold for speech (Int16)
+const VAD_THRESHOLD = 200;          // RMS threshold for speech (Int16)
 const SILENCE_DURATION = 2000;      // 2s of silence after speech ends recording
 const NO_RESPONSE_TIMEOUT = 10000;  // 10s with no speech ends recording
 
